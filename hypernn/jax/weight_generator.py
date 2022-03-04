@@ -1,6 +1,8 @@
 import abc
-import jax.numpy as jnp
+
 import flax.linen as nn
+import jax.numpy as jnp
+
 
 class FlaxWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
     embedding_dim: int
@@ -9,11 +11,11 @@ class FlaxWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def __call__(self, embedding: jnp.array, *args, **kwargs):
         """
-            Forward pass to output embeddings
+        Forward pass to output embeddings
         """
 
-class FlaxStaticWeightGenerator(FlaxWeightGenerator):
 
+class FlaxStaticWeightGenerator(FlaxWeightGenerator):
     def setup(self):
         self.dense1 = nn.Dense(32)
         self.dense2 = nn.Dense(self.hidden_dim)

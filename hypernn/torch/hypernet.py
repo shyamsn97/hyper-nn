@@ -6,9 +6,15 @@ import torch
 import torch.nn as nn
 
 from hypernn.base_hypernet import BaseHyperNetwork
-from hypernn.torch.embedding_module import StaticTorchEmbeddingModule, TorchEmbeddingModule
+from hypernn.torch.embedding_module import (
+    StaticTorchEmbeddingModule,
+    TorchEmbeddingModule,
+)
 from hypernn.torch.utils import FunctionalParamVectorWrapper, count_params
-from hypernn.torch.weight_generator import LinearTorchWeightGenerator, TorchWeightGenerator
+from hypernn.torch.weight_generator import (
+    LinearTorchWeightGenerator,
+    TorchWeightGenerator,
+)
 
 
 class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
@@ -66,7 +72,9 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
         params = self.weight_generator(embeddings).view(-1)
         return params
 
-    def forward(self, x: Any, params: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, x: Any, params: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         if params is None:
             params = self.generate_params(x)
         return self._target(params, x), params
