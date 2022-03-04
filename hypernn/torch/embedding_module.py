@@ -20,7 +20,7 @@ class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
         """
 
 
-class StaticEmbeddingModule(TorchEmbeddingModule):
+class StaticTorchEmbeddingModule(TorchEmbeddingModule):
     def __init__(self, embedding_dim: int, num_embeddings: int):
         super().__init__(embedding_dim, num_embeddings)
         self.embedding = nn.Embedding(num_embeddings, embedding_dim)
