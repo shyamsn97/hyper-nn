@@ -11,6 +11,7 @@ class TorchWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.embedding_dim = embedding_dim
+        self.__device_param_dummy__ = nn.Parameter(torch.empty(0))
 
     @abc.abstractmethod
     def forward(self, embedding: torch.Tensor, *args, **kwargs) -> torch.Tensor:
@@ -18,15 +19,15 @@ class TorchWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
         Generate Embedding
         """
 
+    @property
+    def device(self) -> torch.device:
+        return self.__device_param_dummy__.device
+
 
 class LinearTorchWeightGenerator(TorchWeightGenerator):
     def __init__(self, embedding_dim: int, hidden_dim: int):
         super().__init__(embedding_dim, hidden_dim)
-        self.generator = nn.Sequential(
-            nn.Linear(embedding_dim, 32),
-            nn.ReLU(),
-            nn.Linear(32, hidden_dim, bias=False),
-        )
+        self.generator = nn.Linear(embedding_dim, hidden_dim)
 
     def forward(self, embedding: torch.Tensor) -> torch.Tensor:
         return self.generator(embedding).view(-1)

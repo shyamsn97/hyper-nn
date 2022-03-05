@@ -17,11 +17,7 @@ class FlaxWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
 
 class FlaxStaticWeightGenerator(FlaxWeightGenerator):
     def setup(self):
-        self.dense1 = nn.Dense(32)
-        self.dense2 = nn.Dense(self.hidden_dim)
+        self.dense1 = nn.Dense(self.hidden_dim)
 
     def __call__(self, embedding: jnp.array):
-        x = self.dense1(embedding)
-        x = nn.relu(x)
-        x = self.dense2(x)
-        return x
+        return self.dense1(embedding)

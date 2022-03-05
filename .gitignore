@@ -51,3 +51,6 @@ venv
 checkpoints/*
 wandb/*
 mlruns/*
+
+# data
+*/**/data/
