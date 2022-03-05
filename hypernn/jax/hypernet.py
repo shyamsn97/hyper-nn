@@ -1,15 +1,23 @@
+import functools
 import math
+from dataclasses import field
 from typing import Any, Callable, List, Optional, Tuple
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import numpy as np
+from jax._src.tree_util import PyTreeDef
 
 from hypernn.base_hypernet import BaseHyperNetwork
 from hypernn.jax.embedding_module import FlaxEmbeddingModule, FlaxStaticEmbeddingModule
 from hypernn.jax.utils import count_jax_params
 from hypernn.jax.weight_generator import FlaxStaticWeightGenerator, FlaxWeightGenerator
+
+
+@functools.partial(jax.jit, static_argnames=("apply_fn"))
+def target_forward(apply_fn, param_tree, inputs):
+    return apply_fn(param_tree, inputs)
 
 
 def FlaxHyperNetwork(
@@ -25,8 +33,26 @@ def FlaxHyperNetwork(
     num_embeddings: int = 3,
     hidden_dim: Optional[int] = None,
 ):
+    num_parameters, variables = count_jax_params(target_network, input_shape)
+    _value_flat, target_treedef = jax.tree_util.tree_flatten(variables)
+    target_weight_shapes = [v.shape for v in _value_flat]
+
+    num_embeddings = num_embeddings
+    hidden_dim = hidden_dim
+    if hidden_dim is None:
+        hidden_dim = math.ceil(num_parameters / num_embeddings)
+        if hidden_dim != 0:
+            remainder = num_parameters % hidden_dim
+            if remainder > 0:
+                diff = math.ceil(remainder / hidden_dim)
+                num_embeddings += diff
+
     class FlaxHyperNetwork(nn.Module, BaseHyperNetwork):
         _target: nn.Module
+        target_treedef: PyTreeDef
+        num_parameters: int
+        num_embeddings: int
+        hidden_dim: int
         embedding_module_constructor: Callable[
             [int, int], FlaxEmbeddingModule
         ] = FlaxStaticEmbeddingModule
@@ -34,25 +60,10 @@ def FlaxHyperNetwork(
             [int, int], FlaxWeightGenerator
         ] = FlaxStaticWeightGenerator
         embedding_dim: int = 100
+        target_weight_shapes: Optional[List[Any]] = field(default_factory=list)
 
         def setup(self):
-            self.num_parameters, variables = count_jax_params(self._target, input_shape)
-            self.setup_dims()
             self.embedding_module, self.weight_generator = self.get_networks()
-
-            _value_flat, self.target_treedef = jax.tree_util.tree_flatten(variables)
-            self.target_weight_shapes = [v.shape for v in _value_flat]
-
-        def setup_dims(self):
-            self.num_embeddings = num_embeddings
-            self.hidden_dim = hidden_dim
-            if self.hidden_dim is None:
-                self.hidden_dim = math.ceil(self.num_parameters / self.num_embeddings)
-                if self.hidden_dim != 0:
-                    remainder = self.num_parameters % self.hidden_dim
-                    if remainder > 0:
-                        diff = math.ceil(remainder / self.hidden_dim)
-                        self.num_embeddings += diff
 
         def get_networks(self) -> Tuple[FlaxEmbeddingModule, FlaxWeightGenerator]:
             embedding_module = self.embedding_module_constructor(
@@ -80,13 +91,18 @@ def FlaxHyperNetwork(
             self, x: Any, params: Optional[List[jnp.array]] = None
         ) -> Tuple[jnp.array, List[jnp.array]]:
             if params is None:
-                params = self.generate_params(x)
+                params = self.generate_params()
             param_tree = jax.tree_util.tree_unflatten(self.target_treedef, params)
-            return self._target.apply(param_tree, x), params
+            return target_forward(self._target.apply, param_tree, x), params
 
     return FlaxHyperNetwork(
         target_network,
+        target_treedef,
+        num_parameters,
+        num_embeddings,
+        hidden_dim,
         embedding_module_constructor,
         weight_generator_constructor,
         embedding_dim,
+        target_weight_shapes,
     )
