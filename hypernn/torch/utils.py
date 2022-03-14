@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 # from https://www.sscardapane.it/tutorials/functorch/
-# TODO use functorch once its completely available on pypi
+# TODO use functorch once its completely working, still getting error: undefined symbol: _ZNK3c104Type14isSubtypeOfExtERKS0_PSo
 def count_params(module: nn.Module):
     return sum([np.prod(p.size()) for p in module.parameters()])
 

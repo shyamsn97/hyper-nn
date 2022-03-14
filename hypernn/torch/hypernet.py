@@ -16,6 +16,8 @@ from hypernn.torch.weight_generator import (
     TorchWeightGenerator,
 )
 
+# from functorch import make_functional
+
 
 class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
     def __init__(

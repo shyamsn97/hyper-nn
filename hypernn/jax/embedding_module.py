@@ -1,7 +1,7 @@
 import abc
 
 import flax.linen as nn
-import jax
+import jax.numpy as jnp
 
 
 class FlaxEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
@@ -17,10 +17,8 @@ class FlaxEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
 
 class FlaxStaticEmbeddingModule(FlaxEmbeddingModule):
     def setup(self):
-        self.embedding = nn.Dense(self.embedding_dim, use_bias=False)
+        self.embedding = nn.Embed(self.num_embeddings, self.embedding_dim)
 
     def __call__(self):
-        indices = jax.nn.one_hot(
-            jax.numpy.arange(0, self.num_embeddings), self.num_embeddings
-        )
+        indices = jnp.arange(0, self.num_embeddings)
         return self.embedding(indices)

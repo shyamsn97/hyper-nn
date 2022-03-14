@@ -15,7 +15,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 setup(
     name="hypernn",
     version="0.1.0",
-    url="https://github.com/kragniz/cookiecutter-pypackage-minimal",
+    url="https://github.com/shyamsn97/hyper-nn",
     license='MIT',
 
     author="Shyam Sudhakaran",
@@ -29,6 +29,11 @@ setup(
     packages=find_packages(exclude=('tests',)),
 
     install_requires=[
+        # 'functorch==0.1.0',
+        'torch==1.11.0',
+        'flax',
+        'jax',
+        'einops'
     ],
 
     classifiers=[
