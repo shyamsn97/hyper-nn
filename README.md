@@ -1,6 +1,7 @@
-# hyper-nn (Easy Hypernetworks in Pytorch and Jax (using Flax))
+# hyper-nn (Easy Hypernetworks in Pytorch and Jax)
+**Note: This library is experimental and currently under development - the jax implementations in particular are far from perfect and can be improved. If you have any suggestions on how to improve this library, please open a github issue or feel free to reach out directly!**
 
-`hyper-nn` empowers users with the ability to create easily customizable [Hypernetworks](https://arxiv.org/abs/1609.09106) for almost any generic `nn.Module` from [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) and [Flax](https://flax.readthedocs.io/en/latest/flax.linen.html). Our Hypernetwork objects are also `nn.Modules`, allowing for easy integration in existing systems
+`hyper-nn` gives users with the ability to create easily customizable [Hypernetworks](https://arxiv.org/abs/1609.09106) for almost any generic `torch.nn.Module` from [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) and `flax.linen.Module` from [Flax](https://flax.readthedocs.io/en/latest/flax.linen.html). Our Hypernetwork objects are also `torch.nn.Modules` and `flax.linen.Modules`, allowing for easy integration in existing systems
 
 
 ## What are Hypernetworks?
