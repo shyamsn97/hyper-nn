@@ -7,12 +7,12 @@ import torch.nn as nn
 
 from hypernn.base_hypernet import BaseHyperNetwork
 from hypernn.torch.embedding_module import (
-    StaticTorchEmbeddingModule,
+    DefaultTorchEmbeddingModule,
     TorchEmbeddingModule,
 )
 from hypernn.torch.utils import FunctionalParamVectorWrapper, count_params
 from hypernn.torch.weight_generator import (
-    LinearTorchWeightGenerator,
+    DefaultTorchWeightGenerator,
     TorchWeightGenerator,
 )
 
@@ -25,10 +25,10 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
         target_network: nn.Module,
         embedding_module_constructor: Callable[
             [int, int], TorchEmbeddingModule
-        ] = StaticTorchEmbeddingModule,
+        ] = DefaultTorchEmbeddingModule,
         weight_generator_constructor: Callable[
             [int, int], TorchWeightGenerator
-        ] = LinearTorchWeightGenerator,
+        ] = DefaultTorchWeightGenerator,
         embedding_dim: int = 100,
         num_embeddings: int = 3,
         hidden_dim: Optional[int] = None,

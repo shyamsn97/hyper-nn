@@ -15,7 +15,7 @@ class FlaxWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
         """
 
 
-class FlaxStaticWeightGenerator(FlaxWeightGenerator):
+class DefaultFlaxWeightGenerator(FlaxWeightGenerator):
     def setup(self):
         self.dense1 = nn.Dense(self.hidden_dim)
 

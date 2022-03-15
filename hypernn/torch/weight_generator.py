@@ -24,7 +24,7 @@ class TorchWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
         return self.__device_param_dummy__.device
 
 
-class LinearTorchWeightGenerator(TorchWeightGenerator):
+class DefaultTorchWeightGenerator(TorchWeightGenerator):
     def __init__(self, embedding_dim: int, hidden_dim: int):
         super().__init__(embedding_dim, hidden_dim)
         self.generator = nn.Linear(embedding_dim, hidden_dim)

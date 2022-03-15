@@ -15,7 +15,7 @@ class FlaxEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
         """
 
 
-class FlaxStaticEmbeddingModule(FlaxEmbeddingModule):
+class DefaultFlaxEmbeddingModule(FlaxEmbeddingModule):
     def setup(self):
         self.embedding = nn.Embed(self.num_embeddings, self.embedding_dim)
 
