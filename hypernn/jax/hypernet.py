@@ -86,13 +86,16 @@ def FlaxHyperNetwork(
                 curr = curr + num_params
             return param_list
 
-        def __call__(
-            self, x: Any, params: Optional[List[jnp.array]] = None
-        ) -> Tuple[jnp.array, List[jnp.array]]:
+        def forward(self, inp: Any, params: Optional[List[jnp.array]] = None):
             if params is None:
-                params = self.generate_params(x)
+                params = self.generate_params(inp)
             param_tree = jax.tree_util.tree_unflatten(self.target_treedef, params)
-            return target_forward(self._target.apply, param_tree, x), params
+            return target_forward(self._target.apply, param_tree, inp), params
+
+        def __call__(
+            self, inp: Any, params: Optional[List[jnp.array]] = None
+        ) -> Tuple[jnp.array, List[jnp.array]]:
+            return self.forward(inp, params)
 
         def save(self, params, path: str):
             bytes_output = serialization.to_bytes(params)

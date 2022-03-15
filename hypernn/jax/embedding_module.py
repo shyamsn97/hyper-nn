@@ -9,8 +9,11 @@ class FlaxEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
     embedding_dim: int
     num_embeddings: int
 
+    def setup(self):
+        pass
+
     @abc.abstractmethod
-    def __call__(self, inp: Optional[Any] = None, *args, **kwargs):
+    def __call__(self, inp: Optional[Any] = None, *args, **kwargs) -> jnp.array:
         """
         Forward pass to output embeddings
         """
@@ -20,6 +23,6 @@ class DefaultFlaxEmbeddingModule(FlaxEmbeddingModule):
     def setup(self):
         self.embedding = nn.Embed(self.num_embeddings, self.embedding_dim)
 
-    def __call__(self, inp: Optional[Any] = None):
+    def __call__(self, inp: Optional[Any] = None) -> jnp.array:
         indices = jnp.arange(0, self.num_embeddings)
         return self.embedding(indices)
