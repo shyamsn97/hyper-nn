@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -15,7 +16,7 @@ class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
         self.__device_param_dummy__ = nn.Parameter(torch.empty(0))
 
     @abc.abstractmethod
-    def forward(self, *args, **kwargs):
+    def forward(self, inp: Optional[Any] = None, *args, **kwargs):
         """
         Generate Embedding
         """
@@ -30,6 +31,6 @@ class DefaultTorchEmbeddingModule(TorchEmbeddingModule):
         super().__init__(embedding_dim, num_embeddings)
         self.embedding = nn.Embedding(num_embeddings, embedding_dim)
 
-    def forward(self, *args, **kwargs):
+    def forward(self, inp: Optional[Any] = None, *args, **kwargs):
         indices = torch.arange(self.num_embeddings).to(self.device)
         return self.embedding(indices)

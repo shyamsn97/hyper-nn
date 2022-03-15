@@ -86,21 +86,37 @@ class BaseHyperNetwork(metaclass=abc.ABCMeta):
 
 ### Components
 
-##### [EmbeddingModule constructor](hypernn/torch/embedding_module.py)
+##### [EmbeddingModule](hypernn/torch/embedding_module.py)
 ```python
 class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
     def __init__(self, embedding_dim: int, num_embeddings: int):
         ...
+
+    @abc.abstractmethod
+    def forward(self, inp: Optional[Any] = None, *args, **kwargs):
+        """
+        Generate Embedding
+        """
+
 ```
 
-##### [Weight Generator constructor](hypernn/torch/weight_generator.py)
+##### [Weight Generator](hypernn/torch/weight_generator.py)
 ```python
 class TorchWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
     def __init__(self, embedding_dim: int, hidden_dim: int):
         ...
+
+    @abc.abstractmethod
+    def forward(
+        self, embedding: torch.Tensor, inp: Optional[Any] = None, *args, **kwargs
+    ) -> torch.Tensor:
+        """
+        Generate Embedding
+        """
+
 ```
 
-##### [Hypernetwork constructor](build/lib/hypernn/torch/hypernet.py)
+##### [Hypernetwork](build/lib/hypernn/torch/hypernet.py)
 ```python
 class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
     def __init__(
@@ -121,6 +137,7 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
         self, x: Any, params: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         ...
+
 ```
 
 #### Example usage
@@ -185,25 +202,37 @@ For jax implementations, we use the jax neural network library [flax](https://gi
 
 ### Components
 
-##### [EmbeddingModule constructor](hypernn/jax/embedding_module.py)
+##### [EmbeddingModule](hypernn/jax/embedding_module.py)
 ```python
 class FlaxEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
     embedding_dim: int
     num_embeddings: int
 
-    ...
+    @abc.abstractmethod
+    def __call__(self, inp: Optional[Any] = None, *args, **kwargs):
+        """
+        Forward pass to output embeddings
+        """
+
 ```
 
-##### [Weight Generator constructor](hypernn/jax/weight_generator.py)
+##### [Weight Generator](hypernn/jax/weight_generator.py)
 ```python
 class FlaxWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
     embedding_dim: int
     hidden_dim: int
 
-    ...
+    @abc.abstractmethod
+    def __call__(
+        self, embedding: jnp.array, inp: Optional[Any] = None, *args, **kwargs
+    ):
+        """
+        Forward pass to output embeddings
+        """
+
 ```
 
-##### [Hypernetwork constructor](hypernn/jax/hypernet.py)
+##### [Hypernetwork](hypernn/jax/hypernet.py)
 Because flax networks do not automatically initialize weights like torch networks do, we need to pass in input shape into the constructor as an additional parameter
 
 ```python
@@ -308,7 +337,7 @@ weight_generator_constructor = partial(CustomStaticWeightGenerator, embedding_ne
 
 hypernetwork = TorchHyperNetwork(
                             target_network,
-                            embedding_module_constructor=StaticEmbeddingModule,
+                            embedding_module_constructor=DefaultTorchEmbeddingModule,
                             weight_generator_constructor=weight_generator_constructor,
                             embedding_dim = 32,
                             num_embeddings = 512

@@ -27,7 +27,6 @@ from typing import Any, Optional
 
 
 class BaseHyperNetwork(metaclass=abc.ABCMeta):
-
     @abc.abstractmethod
     def generate_params(self, inp: Optional[Any] = None, *args, **kwargs) -> Any:
         """

@@ -70,8 +70,8 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
         return embedding_module, weight_generator
 
     def generate_params(self, x: Optional[Any] = None, *args, **kwargs) -> torch.Tensor:
-        embeddings = self.embedding_module()
-        params = self.weight_generator(embeddings).view(-1)
+        embeddings = self.embedding_module(x)
+        params = self.weight_generator(embeddings, x).view(-1)
         return params
 
     def forward(

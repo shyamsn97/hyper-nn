@@ -75,8 +75,8 @@ def FlaxHyperNetwork(
         def generate_params(
             self, x: Optional[Any] = None, *args, **kwargs
         ) -> List[jnp.array]:
-            embeddings = self.embedding_module()
-            params = self.weight_generator(embeddings).reshape(-1)
+            embeddings = self.embedding_module(x)
+            params = self.weight_generator(embeddings, x).reshape(-1)
             param_list = []
             curr = 0
             for shape in self.target_weight_shapes:
@@ -89,9 +89,7 @@ def FlaxHyperNetwork(
             self, x: Any, params: Optional[List[jnp.array]] = None
         ) -> Tuple[jnp.array, List[jnp.array]]:
             if params is None:
-                params = self.generate_params(
-                    self.embedding_module, self.weight_generator
-                )
+                params = self.generate_params(x)
             param_tree = jax.tree_util.tree_unflatten(self.target_treedef, params)
             return target_forward(self._target.apply, param_tree, x), params
 
