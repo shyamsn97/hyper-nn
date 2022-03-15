@@ -1,18 +1,17 @@
-# Hyper-nn (Easy Hypernetworks in Pytorch and Jax (using Flax))
-Hyper-nn is a plug-n-play library for [Hypernetworks](https://arxiv.org/abs/1609.09106) in Pytorch and Jax. The implementations are meant to be integrated easily with existing Pytorch and Flax networks.
+# hyper-nn (Easy Hypernetworks in Pytorch and Jax (using Flax))
 
+`hyper-nn` empowers users with the ability to create easily customizable [Hypernetworks](https://arxiv.org/abs/1609.09106) for almost any generic `nn.Module` from [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) and [Flax](https://flax.readthedocs.io/en/latest/flax.linen.html). Our Hypernetwork objects are also `nn.Modules`, allowing for easy integration in existing systems
 
-## Install
-```bash
-$ pip install hyper-nn
-```
+## What are Hypernetworks?
+Hypernetworks, simply put, are neural networks that generate parameters for another neural network. They can be incredibly powerful, being able to represent large networks while using only a fraction of their parameters.
 
+`hyper-nn` represents Hypernetworks with two key components: an Embedding that holds information about layer(s) in the target network and a Weight Generator, which takes in the embedding and outputs a parameter vector for the target network. 
 
-## Architecture
+Hypernetworks also come in two variants, static or dynamic. Static Hypernetworks have a fixed or learned embedding and weight generator that outputs the target networks’ weights deterministically. Dynamic Hypernetworks instead receive inputs and use them to generate dynamic weights.
 
 #### Static Hypernetwork
 
-                                                          ┌───────────┐
+                                                          ┌───────────┐                    
                                                           │   Input   │
                                                           └─────┬─────┘
                                                                 │
@@ -23,7 +22,7 @@ $ pip install hyper-nn
     │ ┌───────────┐          ┌─────────────────┐ │  │  ┌─────────────────┐  │
     │ │           │          │                 │ │  │  │                 │  │
     │ │ Embedding ├─────────►│ Weight Generator├─┼──┼─►│Generated Weights│  │
-    │ │           │          │                 │ │  │  │                 │  │
+    │ │  Module   │          │                 │ │  │  │                 │  │
     │ └───────────┘          └─────────────────┘ │  │  └─────────────────┘  │
     │                                            │  │                       │
     └────────────────────────────────────────────┘  └───────────┬───────────┘
@@ -46,7 +45,7 @@ $ pip install hyper-nn
     │ ┌─────▼─────┐          ┌────────▼────────┐ │  │  ┌─────────────────┐  │
     │ │           │          │                 │ │  │  │                 │  │
     │ │ Embedding ├─────────►│ Weight Generator├─┼──┼─►│Generated Weights│  │
-    │ │           │          │                 │ │  │  │                 │  │
+    │ │  Module   │          │                 │ │  │  │                 │  │
     │ └───────────┘          └─────────────────┘ │  │  └─────────────────┘  │
     │                                            │  │                       │
     └────────────────────────────────────────────┘  └───────────┬───────────┘
@@ -55,6 +54,18 @@ $ pip install hyper-nn
                                                           ┌───────────┐
                                                           │   Output  │
                                                           └───────────┘
+
+### Key Components 
+
+#### EmbeddingModule
+
+
+
+## Install
+```bash
+$ pip install hyper-nn
+```
+For gpu functionality with Jax, you will need to follow the instructions [here](https://github.com/google/jax#installation)
 
 ## Usage
 
