@@ -122,7 +122,7 @@ class FlaxEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
 </details>
 
 #### WeightGenerator
-`WeightGenerator` takes in the embedding matrix from `EmbeddingModule` and outputs a parameter vector of size `num_target_parameters`, equal to the total number of parameters in the target network.
+`WeightGenerator` takes in the embedding matrix from `EmbeddingModule` and outputs a parameter vector of size `num_target_parameters`, equal to the total number of parameters in the target network. To ensure that the output is equal to `num_target_parameters`, the `WeightGenerator` outputs a matrix of size `num_embeddings x hidden_dim`, where `hidden_dim = num_target_parameters // num_embeddings`, and then flattens it.
 
 <details><summary> <b>Pytorch</b> </summary>
 <p>
@@ -176,6 +176,58 @@ class FlaxWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
 
 </p>
 </details>
+
+#### HyperNetwork
+`HyperNetwork` takes in a target network, represented as a `torch.nn.Module or flax.linen.Module`, an `EmbeddingModule` and `WeightGenerator` constructor, `embedding_dim`,  and `num_embeddings`. `HyperNetwork` creates the `EmbeddingModule` and `WeightGenerator`, and uses them to generate parameters to be passed into the target network.
+
+[code](hypernn/base_hypernet.py)
+
+```python
+class BaseHyperNetwork(metaclass=abc.ABCMeta):
+    def __init__(
+        self,
+        target_network: Union[torch.nn.Module, flax.linen.Module],
+        embedding_module_constructor: Callable[
+            [int, int], Union[TorchEmbeddingModule, FlaxEmbeddingModule]
+        ],
+        weight_generator_constructor: Callable[
+            [int, int], Union[TorchWeightGenerator, FlaxWeightGenerator]
+        ],
+        embedding_dim: int,
+        num_embeddings: int,
+    ):
+        pass
+
+    @abc.abstractmethod
+    def generate_params(self, inp: Optional[Any] = None, *args, **kwargs) -> Any:
+        """
+        Generate a vector of parameters for target network
+
+        Args:
+            inp (Optional[Any], optional): input, may be useful when creating dynamic hypernetworks
+
+        Returns:
+            Any: vector of parameters for target network
+        """
+
+    @abc.abstractmethod
+    def forward(
+        self,
+        inp: Any,
+        params: Optional[Union[torch.tensor, jnp.array]] = None,
+        **kwargs
+    ):
+        """
+        Computes a forward pass with generated parameters or with parameters that are passed in
+
+        Args:
+            inp (Any): input from system
+            params (Optional[Union[torch.tensor, jnp.array]], optional): Generated params. Defaults to None.
+        Returns:
+            returns output and generated parameters
+        """
+
+```
 
 
 ## Usage

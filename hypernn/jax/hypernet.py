@@ -6,8 +6,8 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jax._src.tree_util import PyTreeDef
 from flax import serialization
+from jax._src.tree_util import PyTreeDef
 
 from hypernn.base_hypernet import BaseHyperNetwork
 from hypernn.jax.embedding_module import DefaultFlaxEmbeddingModule, FlaxEmbeddingModule
@@ -99,7 +99,7 @@ def FlaxHyperNetwork(
 
         def save(self, params, path: str):
             bytes_output = serialization.to_bytes(params)
-            with open(path, 'wb') as f: 
+            with open(path, "wb") as f:
                 f.write(bytes_output)
 
         def load(self, params, path: str):

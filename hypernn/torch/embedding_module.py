@@ -13,7 +13,9 @@ class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
         self.embedding = None
-        self.__device_param_dummy__ = nn.Parameter(torch.empty(0))
+        self.__device_param_dummy__ = nn.Parameter(
+            torch.empty(0)
+        )  # to keep track of device
 
     @property
     def device(self) -> torch.device:
@@ -24,6 +26,7 @@ class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
         """
         Generate Embedding
         """
+
 
 class DefaultTorchEmbeddingModule(TorchEmbeddingModule):
     def __init__(self, embedding_dim: int, num_embeddings: int):

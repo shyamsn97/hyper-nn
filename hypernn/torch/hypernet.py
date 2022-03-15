@@ -34,7 +34,9 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
         hidden_dim: Optional[int] = None,
     ):
         super(TorchHyperNetwork, self).__init__()
-        self.__device_param_dummy__ = nn.Parameter(torch.empty(0)) # to keep track of device
+        self.__device_param_dummy__ = nn.Parameter(
+            torch.empty(0)
+        )  # to keep track of device
         self.num_parameters = count_params(target_network)
         self.embedding_module_constructor = embedding_module_constructor
         self.weight_generator_constructor = weight_generator_constructor
@@ -69,7 +71,9 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
         )
         return embedding_module, weight_generator
 
-    def generate_params(self, inp: Optional[Any] = None, *args, **kwargs) -> torch.Tensor:
+    def generate_params(
+        self, inp: Optional[Any] = None, *args, **kwargs
+    ) -> torch.Tensor:
         embeddings = self.embedding_module(inp)
         params = self.weight_generator(embeddings, inp).view(-1)
         return params

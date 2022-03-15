@@ -12,7 +12,9 @@ class TorchWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.embedding_dim = embedding_dim
-        self.__device_param_dummy__ = nn.Parameter(torch.empty(0)) # to keep track of device
+        self.__device_param_dummy__ = nn.Parameter(
+            torch.empty(0)
+        )  # to keep track of device
 
     @abc.abstractmethod
     def forward(
