@@ -54,3 +54,4 @@ mlruns/*
 
 # data
 */**/data/
+*.mp4

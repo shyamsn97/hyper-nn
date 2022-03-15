@@ -19,7 +19,7 @@ $ pip install hyper-nn
                                                                 ▼
     ┌────────────────────────────────────────────┐  ┌───────────────────────┐
     │                                            │  │                       │
-    │              HyperNetwork                  │  │      Target Network   │
+    │              HyperNetwork                  │  │     Target Network    │
     │ ┌───────────┐          ┌─────────────────┐ │  │  ┌─────────────────┐  │
     │ │           │          │                 │ │  │  │                 │  │
     │ │ Embedding ├─────────►│ Weight Generator├─┼──┼─►│Generated Weights│  │
@@ -36,13 +36,13 @@ $ pip install hyper-nn
 #### Dynamic Hypernetwork
 
                                                           ┌───────────┐
-            ┌────────────────────  or ┌───────────────────┤   Input   │
+            ┌───────────────── and/or ┌───────────────────┤   Input   │
             │                         │                   └─────┬─────┘
             │                         │                         │
             │                         │                         ▼
     ┌───────┼─────────────────────────┼──────────┐  ┌───────────────────────┐
     │       │                         │          │  │                       │
-    │       │      HyperNetwork       │          │  │      Target Network   │
+    │       │      HyperNetwork       │          │  │     Target Network    │
     │ ┌─────▼─────┐          ┌────────▼────────┐ │  │  ┌─────────────────┐  │
     │ │           │          │                 │ │  │  │                 │  │
     │ │ Embedding ├─────────►│ Weight Generator├─┼──┼─►│Generated Weights│  │
@@ -140,7 +140,7 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
 
 ```
 
-#### Example usage
+#### Minimal Example
 ```python
 import torch.nn as nn
 
