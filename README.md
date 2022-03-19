@@ -364,9 +364,9 @@ output, _ = hypernetwork.apply(variables, jnp.zeros((1,8)), params=generated_par
 </p>
 </details>
 
----
 
-### Extra
+
+## Extra
 
 #### Using custom constructors with functools.partial
 

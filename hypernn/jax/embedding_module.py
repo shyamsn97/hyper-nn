@@ -8,6 +8,7 @@ import jax.numpy as jnp
 class FlaxEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
     embedding_dim: int
     num_embeddings: int
+    input_shape: Optional[Any] = None
 
     def setup(self):
         pass

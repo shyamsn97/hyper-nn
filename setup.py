@@ -31,6 +31,7 @@ setup(
     install_requires=[
         # 'functorch==0.1.0',
         'torch==1.11.0',
+        'functorch',
         'flax',
         'jax',
         'einops'

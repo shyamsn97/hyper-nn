@@ -8,6 +8,7 @@ import jax.numpy as jnp
 class FlaxWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
     embedding_dim: int
     hidden_dim: int
+    input_shape: Optional[Any] = None
 
     @abc.abstractmethod
     def __call__(

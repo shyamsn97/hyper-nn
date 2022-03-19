@@ -20,7 +20,7 @@ def target_forward(apply_fn, param_tree, inputs):
 
 
 def FlaxHyperNetwork(
-    input_shape: Tuple[int, ...],
+    input_shape: Any,
     target_network: nn.Module,
     embedding_module_constructor: Callable[
         [int, int], FlaxEmbeddingModule
@@ -47,6 +47,7 @@ def FlaxHyperNetwork(
                 num_embeddings += diff
 
     class FlaxHyperNetwork(nn.Module, BaseHyperNetwork):
+        input_shape: Any
         _target: nn.Module
         target_treedef: PyTreeDef
         num_parameters: int
@@ -66,10 +67,10 @@ def FlaxHyperNetwork(
 
         def get_networks(self) -> Tuple[FlaxEmbeddingModule, FlaxWeightGenerator]:
             embedding_module = self.embedding_module_constructor(
-                self.embedding_dim, self.num_embeddings
+                self.embedding_dim, self.num_embeddings, self.input_shape
             )
             weight_generator = self.weight_generator_constructor(
-                self.embedding_dim, self.hidden_dim
+                self.embedding_dim, self.hidden_dim, self.input_shape
             )
             return embedding_module, weight_generator
 
@@ -84,18 +85,24 @@ def FlaxHyperNetwork(
                 num_params = np.prod(shape)
                 param_list.append(params[curr : curr + num_params].reshape(shape))
                 curr = curr + num_params
-            return param_list
+            return param_list, embeddings
 
-        def forward(self, inp: Any, params: Optional[List[jnp.array]] = None):
+        def forward(
+            self, inp: Any, params: Optional[List[jnp.array]] = None, *args, **kwargs
+        ):
             if params is None:
-                params = self.generate_params(inp)
+                params, embeddings = self.generate_params(inp, *args, **kwargs)
             param_tree = jax.tree_util.tree_unflatten(self.target_treedef, params)
-            return target_forward(self._target.apply, param_tree, inp), params
+            return (
+                target_forward(self._target.apply, param_tree, inp),
+                params,
+                embeddings,
+            )
 
         def __call__(
-            self, inp: Any, params: Optional[List[jnp.array]] = None
+            self, inp: Any, params: Optional[List[jnp.array]] = None, *args, **kwargs
         ) -> Tuple[jnp.array, List[jnp.array]]:
-            return self.forward(inp, params)
+            return self.forward(inp, params, *args, **kwargs)
 
         def save(self, params, path: str):
             bytes_output = serialization.to_bytes(params)

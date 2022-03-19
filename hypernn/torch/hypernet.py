@@ -1,6 +1,6 @@
 import copy
-import math
-from typing import Any, Callable, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -10,80 +10,82 @@ from hypernn.torch.embedding_module import (
     DefaultTorchEmbeddingModule,
     TorchEmbeddingModule,
 )
-from hypernn.torch.utils import FunctionalParamVectorWrapper, count_params
+from hypernn.torch.utils import FunctionalParamVectorWrapper
 from hypernn.torch.weight_generator import (
     DefaultTorchWeightGenerator,
     TorchWeightGenerator,
 )
 
-# from functorch import make_functional
-
 
 class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
+
+    DEFAULT_EMBEDDING_MODULE = DefaultTorchEmbeddingModule
+    DEFAULT_WEIGHT_GENERATOR = DefaultTorchWeightGenerator
+
     def __init__(
         self,
+        input_shape: Any,
         target_network: nn.Module,
-        embedding_module_constructor: Callable[
-            [int, int], TorchEmbeddingModule
-        ] = DefaultTorchEmbeddingModule,
-        weight_generator_constructor: Callable[
-            [int, int], TorchWeightGenerator
-        ] = DefaultTorchWeightGenerator,
+        embedding_module: Optional[TorchEmbeddingModule] = None,
+        weight_generator: Optional[TorchWeightGenerator] = None,
         embedding_dim: int = 100,
         num_embeddings: int = 3,
         hidden_dim: Optional[int] = None,
     ):
         super(TorchHyperNetwork, self).__init__()
+        self.input_shape = input_shape
         self.__device_param_dummy__ = nn.Parameter(
             torch.empty(0)
         )  # to keep track of device
-        self.num_parameters = count_params(target_network)
-        self.embedding_module_constructor = embedding_module_constructor
-        self.weight_generator_constructor = weight_generator_constructor
-        self.embedding_dim = embedding_dim
-        self.num_embeddings = num_embeddings
-        self.hidden_dim = hidden_dim
-        self.setup_dims()
+        self.embedding_module = embedding_module
+        self.weight_generator = weight_generator
 
-        self.embedding_module, self.weight_generator = self.get_networks()
+        if self.embedding_module is None:
+            self.embedding_module = self.DEFAULT_EMBEDDING_MODULE(
+                embedding_dim, num_embeddings, self.input_shape
+            )
+
+        if self.weight_generator is None:
+            self.weight_generator = self.DEFAULT_WEIGHT_GENERATOR.from_target(
+                self.target_network,
+                self.embedding_module.embedding_dim,
+                self.embedding_module.num_embeddings,
+                hidden_dim,
+            )
+
         self._target = self.create_functional_target_network(
             copy.deepcopy(target_network)
         )
 
     def create_functional_target_network(self, target_network: nn.Module):
-        return FunctionalParamVectorWrapper(target_network)
-
-    def setup_dims(self):
-        if self.hidden_dim is None:
-            self.hidden_dim = math.ceil(self.num_parameters / self.num_embeddings)
-            if self.hidden_dim != 0:
-                remainder = self.num_parameters % self.hidden_dim
-                if remainder > 0:
-                    diff = math.ceil(remainder / self.hidden_dim)
-                    self.num_embeddings += diff
-
-    def get_networks(self) -> Tuple[TorchEmbeddingModule, TorchWeightGenerator]:
-        embedding_module = self.embedding_module_constructor(
-            self.embedding_dim, self.num_embeddings
-        )
-        weight_generator = self.weight_generator_constructor(
-            self.embedding_dim, self.hidden_dim
-        )
-        return embedding_module, weight_generator
+        func_model = FunctionalParamVectorWrapper(target_network)
+        return func_model
 
     def generate_params(
-        self, inp: Optional[Any] = None, *args, **kwargs
+        self,
+        inp: Iterable[Any] = [],
+        embedding_module_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
     ) -> torch.Tensor:
-        embeddings = self.embedding_module(inp)
-        params = self.weight_generator(embeddings, inp).view(-1)
-        return params
+        embedding_output = self.embedding_module(inp, **embedding_module_kwargs)
+        params = self.weight_generator(
+            embedding_output, inp, **weight_generator_kwargs
+        ).view(-1)
+        return params, embedding_output
 
     def forward(
-        self, inp: Any, params: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        if params is None:
-            params = self.generate_params(inp)
-        return self._target(params, inp), params
+        self,
+        inp: Iterable[Any] = [],
+        generated_params: Optional[torch.Tensor] = None,
+        embedding_module_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
+    ) -> Tuple[torch.Tensor, torch.Tensor, Any]:
+        embedding_output = None
+        if generated_params is None:
+            generated_params, embedding_output = self.generate_params(
+                inp, embedding_module_kwargs, weight_generator_kwargs
+            )
+        return self._target(generated_params, *inp), generated_params, embedding_output
 
     @property
     def device(self) -> torch.device:

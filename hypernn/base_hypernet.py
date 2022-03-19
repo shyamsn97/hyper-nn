@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import flax
 import jax.numpy as jnp
@@ -62,6 +62,7 @@ from hypernn.torch.weight_generator import TorchWeightGenerator
 class BaseHyperNetwork(metaclass=abc.ABCMeta):
     def __init__(
         self,
+        input_shape: Tuple[int, ...],
         target_network: Union[torch.nn.Module, flax.linen.Module],
         embedding_module_constructor: Callable[
             [int, int], Union[TorchEmbeddingModule, FlaxEmbeddingModule]
@@ -75,7 +76,12 @@ class BaseHyperNetwork(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def generate_params(self, inp: Optional[Any] = None, *args, **kwargs) -> Any:
+    def generate_params(
+        self,
+        inp: Dict[str, Any] = {"args": [], "kwargs": {}},
+        embedding_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
+    ) -> Any:
         """
         Generate a vector of parameters for target network
 
@@ -89,8 +95,10 @@ class BaseHyperNetwork(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def forward(
         self,
-        inp: Any,
-        params: Optional[Union[torch.tensor, jnp.array]] = None,
+        *args,
+        generated_params: Optional[Union[torch.tensor, jnp.array]] = None,
+        embedding_module_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
         **kwargs
     ):
         """
