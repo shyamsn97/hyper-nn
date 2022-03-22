@@ -7,13 +7,19 @@ from typing import Any, Optional
 import torch
 import torch.nn as nn
 
+from hypernn.base import EmbeddingModule
+from hypernn.torch.utils import count_params
 
-class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
+
+class TorchEmbeddingModule(nn.Module, EmbeddingModule, metaclass=abc.ABCMeta):
     def __init__(
-        self, embedding_dim: int, num_embeddings: int, input_shape: Optional[Any] = None
+        self,
+        embedding_dim: int,
+        num_embeddings: int,
+        target_input_shape: Optional[Any] = None,
     ):
         super().__init__()
-        self.input_shape = input_shape
+        self.target_input_shape = target_input_shape
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
         self.embedding = None
@@ -22,16 +28,13 @@ class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
         )  # to keep track of device
 
     @classmethod
-    def from_target(
+    def count_params(
         cls,
         target: nn.Module,
-        embedding_dim: int,
-        num_embeddings: int,
-        input_shape: Optional[Any] = None,
-        *args,
-        **kwargs
-    ) -> TorchEmbeddingModule:
-        return cls(embedding_dim, num_embeddings, input_shape, *args, **kwargs)
+        target_input_shape: Optional[Any] = None,
+        return_variables: bool = False,
+    ):
+        return count_params(target, target_input_shape, return_variables)
 
     @property
     def device(self) -> torch.device:
@@ -46,9 +49,12 @@ class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
 
 class DefaultTorchEmbeddingModule(TorchEmbeddingModule):
     def __init__(
-        self, embedding_dim: int, num_embeddings: int, input_shape: Optional[Any] = None
+        self,
+        embedding_dim: int,
+        num_embeddings: int,
+        target_input_shape: Optional[Any] = None,
     ):
-        super().__init__(embedding_dim, num_embeddings, input_shape)
+        super().__init__(embedding_dim, num_embeddings, target_input_shape)
         self.embedding = nn.Embedding(num_embeddings, embedding_dim)
 
     def forward(self, inp: Iterable[Any] = [], *args, **kwargs) -> torch.Tensor:

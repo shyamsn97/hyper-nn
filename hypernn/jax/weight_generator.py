@@ -1,22 +1,21 @@
-import abc
 from typing import Any, Optional
 
 import flax.linen as nn
 import jax.numpy as jnp
 
+from hypernn.base import WeightGenerator
+from hypernn.jax.utils import count_jax_params
 
-class FlaxWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
+
+class FlaxWeightGenerator(nn.Module, WeightGenerator):
     embedding_dim: int
+    num_embeddings: int
     hidden_dim: int
-    input_shape: Optional[Any] = None
+    target_input_shape: Optional[Any] = None
 
-    @abc.abstractmethod
-    def __call__(
-        self, embedding: jnp.array, inp: Optional[Any] = None, *args, **kwargs
-    ):
-        """
-        Forward pass to output embeddings
-        """
+    @classmethod
+    def count_params(cls, target: nn.Module, target_input_shape: Optional[Any] = None):
+        return count_jax_params(target, target_input_shape)
 
 
 class DefaultFlaxWeightGenerator(FlaxWeightGenerator):

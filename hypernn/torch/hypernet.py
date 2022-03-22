@@ -5,26 +5,26 @@ from typing import Any, Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from hypernn.base_hypernet import BaseHyperNetwork
+from hypernn.base import HyperNetwork
 from hypernn.torch.embedding_module import (
     DefaultTorchEmbeddingModule,
     TorchEmbeddingModule,
 )
-from hypernn.torch.utils import FunctionalParamVectorWrapper
+from hypernn.torch.utils import FunctionalParamVectorWrapper, count_params
 from hypernn.torch.weight_generator import (
     DefaultTorchWeightGenerator,
     TorchWeightGenerator,
 )
 
 
-class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
+class TorchHyperNetwork(nn.Module, HyperNetwork):
 
     DEFAULT_EMBEDDING_MODULE = DefaultTorchEmbeddingModule
     DEFAULT_WEIGHT_GENERATOR = DefaultTorchWeightGenerator
 
     def __init__(
         self,
-        input_shape: Any,
+        target_input_shape: Any,
         target_network: nn.Module,
         embedding_module: Optional[TorchEmbeddingModule] = None,
         weight_generator: Optional[TorchWeightGenerator] = None,
@@ -33,7 +33,7 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
         hidden_dim: Optional[int] = None,
     ):
         super(TorchHyperNetwork, self).__init__()
-        self.input_shape = input_shape
+        self.target_input_shape = target_input_shape
         self.__device_param_dummy__ = nn.Parameter(
             torch.empty(0)
         )  # to keep track of device
@@ -41,16 +41,25 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
         self.weight_generator = weight_generator
 
         if self.embedding_module is None:
-            self.embedding_module = self.DEFAULT_EMBEDDING_MODULE(
-                embedding_dim, num_embeddings, self.input_shape
+            num_target_parameters = self.count_params(
+                target_network, self.target_input_shape
+            )
+            self.embedding_module = self.DEFAULT_EMBEDDING_MODULE.from_target(
+                target_network,
+                embedding_dim,
+                num_embeddings,
+                num_target_parameters=num_target_parameters,
+                target_input_shape=self.target_input_shape,
             )
 
         if self.weight_generator is None:
             self.weight_generator = self.DEFAULT_WEIGHT_GENERATOR.from_target(
-                self.target_network,
+                target_network,
                 self.embedding_module.embedding_dim,
                 self.embedding_module.num_embeddings,
-                hidden_dim,
+                num_target_parameters=num_target_parameters,
+                hidden_dim=hidden_dim,
+                target_input_shape=self.target_input_shape,
             )
 
         self._target = self.create_functional_target_network(
@@ -60,6 +69,15 @@ class TorchHyperNetwork(nn.Module, BaseHyperNetwork):
     def create_functional_target_network(self, target_network: nn.Module):
         func_model = FunctionalParamVectorWrapper(target_network)
         return func_model
+
+    @classmethod
+    def count_params(
+        cls,
+        target: nn.Module,
+        target_input_shape: Optional[Any] = None,
+        return_variables: bool = False,
+    ):
+        return count_params(target, target_input_shape, return_variables)
 
     def generate_params(
         self,

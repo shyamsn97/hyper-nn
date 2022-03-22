@@ -4,7 +4,7 @@ import torch.nn as nn
 from functorch import make_functional
 
 
-def count_params(module: nn.Module):
+def count_params(module: nn.Module, input_shape=None):
     return sum([np.prod(p.size()) for p in module.parameters()])
 
 

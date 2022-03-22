@@ -10,6 +10,7 @@ def count_jax_params(
     model: nn.Module,
     input_shape: Optional[Tuple[int, ...]] = None,
     inputs: Optional[List[jnp.array]] = None,
+    return_variables: bool = False,
 ) -> int:
     if input_shape is None and inputs is None:
         raise ValueError("Input shape or inputs must be specified")
@@ -26,4 +27,6 @@ def count_jax_params(
         return s
 
     param_counts = jax.tree_map(lambda x: int(np.prod(x.shape)), variables)["params"]
-    return count_recursive(param_counts), variables
+    if return_variables:
+        return count_recursive(param_counts), variables
+    return count_recursive(param_counts)

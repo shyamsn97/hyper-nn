@@ -1,23 +1,22 @@
-import abc
+from __future__ import annotations
+
 from typing import Any, Optional
 
 import flax.linen as nn
 import jax.numpy as jnp
 
+from hypernn.base import EmbeddingModule
+from hypernn.jax.utils import count_jax_params
 
-class FlaxEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
+
+class FlaxEmbeddingModule(nn.Module, EmbeddingModule):
     embedding_dim: int
     num_embeddings: int
-    input_shape: Optional[Any] = None
+    target_input_shape: Optional[Any] = None
 
-    def setup(self):
-        pass
-
-    @abc.abstractmethod
-    def __call__(self, inp: Optional[Any] = None, *args, **kwargs) -> jnp.array:
-        """
-        Forward pass to output embeddings
-        """
+    @classmethod
+    def count_params(cls, target: nn.Module, target_input_shape: Optional[Any] = None):
+        return count_jax_params(target, target_input_shape)
 
 
 class DefaultFlaxEmbeddingModule(FlaxEmbeddingModule):
