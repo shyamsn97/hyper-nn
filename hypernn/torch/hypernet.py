@@ -1,6 +1,6 @@
 import copy
 from collections.abc import Iterable
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
@@ -24,13 +24,20 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
 
     def __init__(
         self,
-        target_input_shape: Any,
         target_network: nn.Module,
-        embedding_module: Optional[TorchEmbeddingModule] = None,
-        weight_generator: Optional[TorchWeightGenerator] = None,
+        target_input_shape: Optional[Any] = None,
+        embedding_module: Optional[
+            Union[TorchEmbeddingModule, Type[TorchEmbeddingModule]]
+        ] = None,
+        weight_generator: Optional[
+            Union[TorchWeightGenerator, Type[TorchWeightGenerator]]
+        ] = None,
         embedding_dim: int = 100,
         num_embeddings: int = 3,
         hidden_dim: Optional[int] = None,
+        num_target_parameters: Optional[int] = None,
+        embedding_module_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
     ):
         super(TorchHyperNetwork, self).__init__()
         self.target_input_shape = target_input_shape
@@ -39,31 +46,84 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         )  # to keep track of device
         self.embedding_module = embedding_module
         self.weight_generator = weight_generator
+        self.embedding_module_kwargs = embedding_module_kwargs
+        self.weight_generator_kwargs = weight_generator_kwargs
 
-        if self.embedding_module is None:
+        if num_target_parameters is None:
             num_target_parameters = self.count_params(
                 target_network, self.target_input_shape
             )
-            self.embedding_module = self.DEFAULT_EMBEDDING_MODULE.from_target(
+        self.num_target_parameters = num_target_parameters
+
+        if self.embedding_module is None:
+            self.embedding_module = self.DEFAULT_EMBEDDING_MODULE
+
+        if self.weight_generator is None:
+            self.weight_generator = self.DEFAULT_WEIGHT_GENERATOR
+
+        # class but not an instance of the class
+        if not isinstance(self.embedding_module, TorchEmbeddingModule) and issubclass(
+            self.embedding_module, TorchEmbeddingModule
+        ):
+            self.embedding_module = self.embedding_module.from_target(
                 target_network,
                 embedding_dim,
                 num_embeddings,
                 num_target_parameters=num_target_parameters,
                 target_input_shape=self.target_input_shape,
+                **embedding_module_kwargs
             )
 
-        if self.weight_generator is None:
-            self.weight_generator = self.DEFAULT_WEIGHT_GENERATOR.from_target(
+        if not isinstance(self.weight_generator, TorchWeightGenerator) and issubclass(
+            self.weight_generator, TorchWeightGenerator
+        ):
+            self.weight_generator = self.weight_generator.from_target(
                 target_network,
                 self.embedding_module.embedding_dim,
                 self.embedding_module.num_embeddings,
                 num_target_parameters=num_target_parameters,
                 hidden_dim=hidden_dim,
                 target_input_shape=self.target_input_shape,
+                **weight_generator_kwargs
             )
 
         self._target = self.create_functional_target_network(
             copy.deepcopy(target_network)
+        )
+
+    @classmethod
+    def from_target(
+        cls,
+        target_network: nn.Module,
+        target_input_shape: Optional[Any] = None,
+        embedding_module: Optional[
+            Union[TorchEmbeddingModule, Type[TorchEmbeddingModule]]
+        ] = None,
+        weight_generator: Optional[
+            Union[TorchWeightGenerator, Type[TorchWeightGenerator]]
+        ] = None,
+        embedding_dim: int = 100,
+        num_embeddings: int = 3,
+        hidden_dim: Optional[int] = None,
+        embedding_module_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
+        *args,
+        **kwargs
+    ):
+        num_target_parameters = cls.count_params(target_network, target_input_shape)
+        return cls(
+            target_network=target_network,
+            target_input_shape=target_input_shape,
+            embedding_module=embedding_module,
+            weight_generator=weight_generator,
+            embedding_dim=embedding_dim,
+            num_embeddings=num_embeddings,
+            hidden_dim=hidden_dim,
+            num_target_parameters=num_target_parameters,
+            embedding_module_kwargs=embedding_module_kwargs,
+            weight_generator_kwargs=weight_generator_kwargs,
+            *args,
+            **kwargs
         )
 
     def create_functional_target_network(self, target_network: nn.Module):

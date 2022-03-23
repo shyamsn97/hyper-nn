@@ -152,15 +152,35 @@ class WeightGenerator(metaclass=abc.ABCMeta):
         )
 
 
-class HyperNetwork:
+class HyperNetwork(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
     @classmethod
     def count_params(
         cls,
         target: Union[torch.nn.Module, flax.linen.Module],
         target_input_shape: Optional[Any] = None,
     ):
-        pass
+        """
+        Counts parameters of target nn.Module
 
+        Args:
+            target (Union[torch.nn.Module, flax.linen.Module]): _description_
+            target_input_shape (Optional[Any], optional): _description_. Defaults to None.
+        """
+
+    @abc.abstractmethod
+    @classmethod
+    def from_target(
+        cls, target: Union[torch.nn.Module, flax.linen.Module], *args, **kwargs
+    ) -> HyperNetwork:
+        """
+        creates hypernetwork from target
+
+        Args:
+            cls (_type_): _description_
+        """
+
+    @abc.abstractmethod
     def generate_params(
         self,
         inp: Iterable[Any] = [],
@@ -176,8 +196,8 @@ class HyperNetwork:
         Returns:
             Any: vector of parameters for target network
         """
-        raise NotImplementedError("generate_params not implemented!")
 
+    @abc.abstractmethod
     def forward(
         self,
         generated_params: Optional[Union[torch.tensor, jnp.array]] = None,
@@ -195,4 +215,3 @@ class HyperNetwork:
         Returns:
             returns output and generated parameters
         """
-        raise NotImplementedError("forward not implemented!")
