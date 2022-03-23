@@ -153,8 +153,8 @@ class WeightGenerator(metaclass=abc.ABCMeta):
 
 
 class HyperNetwork(metaclass=abc.ABCMeta):
-    @abc.abstractmethod
     @classmethod
+    @abc.abstractmethod
     def count_params(
         cls,
         target: Union[torch.nn.Module, flax.linen.Module],
@@ -168,8 +168,8 @@ class HyperNetwork(metaclass=abc.ABCMeta):
             target_input_shape (Optional[Any], optional): _description_. Defaults to None.
         """
 
-    @abc.abstractmethod
     @classmethod
+    @abc.abstractmethod
     def from_target(
         cls, target: Union[torch.nn.Module, flax.linen.Module], *args, **kwargs
     ) -> HyperNetwork:
