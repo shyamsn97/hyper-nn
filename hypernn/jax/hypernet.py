@@ -125,20 +125,20 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
     ):
-        embeddings = self._embedding_module(inp)
-        generated_params = self._weight_generator(embeddings, inp).reshape(-1)
+        embeddings = self._embedding_module(inp, **embedding_module_kwargs)
+        generated_params = self._weight_generator(embeddings, inp, **weight_generator_kwargs).reshape(-1)
         return generated_params, embeddings
 
     def forward(
         self,
         inp: Any,
         generated_params: Optional[List[jnp.array]] = None,
-        *args,
-        **kwargs
+        embedding_module_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
     ):
         embeddings = None
         if generated_params is None:
-            generated_params, embeddings = self.generate_params(inp, *args, **kwargs)
+            generated_params, embeddings = self.generate_params(inp, embedding_module_kwargs, weight_generator_kwargs)
 
         param_list = []
         curr = 0
@@ -157,11 +157,11 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
     def __call__(
         self,
         inp: Any,
-        generated_params: Optional[List[jnp.array]] = None,
-        *args,
-        **kwargs
+        generated_params: Optional[jnp.array] = None,
+        embedding_module_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
     ) -> Tuple[jnp.array, List[jnp.array]]:
-        return self.forward(inp, generated_params, *args, **kwargs)
+        return self.forward(inp, generated_params, embedding_module_kwargs, weight_generator_kwargs)
 
     def save(self, params, path: str):
         bytes_output = serialization.to_bytes(params)
