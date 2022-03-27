@@ -16,13 +16,13 @@ from hypernn.jax.utils import count_jax_params
 from hypernn.jax.weight_generator import DefaultFlaxWeightGenerator, FlaxWeightGenerator
 
 
-def target_forward(apply_fn, param_tree, inputs):
-    return apply_fn(param_tree, inputs)
+def target_forward(apply_fn, param_tree, *args, **kwargs):
+    return apply_fn(param_tree, *args, **kwargs)
 
 
 class FlaxHyperNetwork(nn.Module, HyperNetwork):
     target_network: nn.Module
-    target_input_shape: Any
+    target_input_shape: List[Any]
     target_treedef: PyTreeDef
     embedding_module: Optional[
         Union[FlaxEmbeddingModule, Type[FlaxEmbeddingModule]]
@@ -77,7 +77,7 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
     def from_target(
         cls,
         target_network: nn.Module,
-        target_input_shape: Any,
+        target_input_shape: Optional[List[Any]] = None,
         embedding_module: Optional[
             Union[FlaxEmbeddingModule, Type[FlaxEmbeddingModule]]
         ] = None,
@@ -90,11 +90,12 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
         num_target_parameters: Optional[int] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
+        inputs: Optional[List[Any]] = None,
         *args,
         **kwargs
     ) -> FlaxHyperNetwork:
         num_target_parameters, variables = count_jax_params(
-            target_network, target_input_shape, return_variables=True
+            target_network, target_input_shape, inputs=inputs, return_variables=True
         )
         _value_flat, target_treedef = jax.tree_util.tree_flatten(variables)
         target_weight_shapes = [v.shape for v in _value_flat]
@@ -116,30 +117,27 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
         )
 
     @classmethod
-    def count_params(cls, target: nn.Module, target_input_shape: Optional[Any] = None):
-        return count_jax_params(target, target_input_shape)
+    def count_params(
+        cls,
+        target: nn.Module,
+        target_input_shape: Optional[Any] = None,
+        inputs: Optional[List[Any]] = None,
+    ):
+        return count_jax_params(target, target_input_shape, inputs=inputs)
 
     def generate_params(
         self,
-        inp: Optional[Any] = None,
+        inp: List[Optional[Any]] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
     ):
         embeddings = self._embedding_module(inp, **embedding_module_kwargs)
-        generated_params = self._weight_generator(embeddings, inp, **weight_generator_kwargs).reshape(-1)
+        generated_params = self._weight_generator(
+            embeddings, inp, **weight_generator_kwargs
+        ).reshape(-1)
         return generated_params, embeddings
 
-    def forward(
-        self,
-        inp: Any,
-        generated_params: Optional[List[jnp.array]] = None,
-        embedding_module_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
-    ):
-        embeddings = None
-        if generated_params is None:
-            generated_params, embeddings = self.generate_params(inp, embedding_module_kwargs, weight_generator_kwargs)
-
+    def create_param_tree(self, generated_params):
         param_list = []
         curr = 0
         for shape in self.target_weight_shapes:
@@ -148,20 +146,39 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
             curr = curr + num_params
 
         param_tree = jax.tree_util.tree_unflatten(self.target_treedef, param_list)
+        return param_tree
+
+    def forward(
+        self,
+        inp: List[Any],
+        generated_params: Optional[jnp.array] = None,
+        embedding_module_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
+    ):
+        embedding_output = None
+        if generated_params is None:
+            generated_params, embedding_output = self.generate_params(
+                inp, embedding_module_kwargs, weight_generator_kwargs
+            )
+
+        param_tree = self.create_param_tree(generated_params)
+
         return (
-            target_forward(self.target_network.apply, param_tree, inp),
+            target_forward(self.target_network.apply, param_tree, *inp),
             generated_params,
-            embeddings,
+            embedding_output,
         )
 
     def __call__(
         self,
-        inp: Any,
+        inp: List[Any],
         generated_params: Optional[jnp.array] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
     ) -> Tuple[jnp.array, List[jnp.array]]:
-        return self.forward(inp, generated_params, embedding_module_kwargs, weight_generator_kwargs)
+        return self.forward(
+            inp, generated_params, embedding_module_kwargs, weight_generator_kwargs
+        )
 
     def save(self, params, path: str):
         bytes_output = serialization.to_bytes(params)

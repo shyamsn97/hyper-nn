@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterable
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import torch
 import torch.nn as nn
@@ -33,9 +33,9 @@ class TorchWeightGenerator(nn.Module, WeightGenerator, metaclass=abc.ABCMeta):
         cls,
         target: nn.Module,
         target_input_shape: Optional[Any] = None,
-        return_variables: bool = False,
+        inputs: Optional[List[Any]] = None,
     ):
-        return count_params(target, target_input_shape, return_variables)
+        return count_params(target, target_input_shape, inputs=inputs)
 
     @abc.abstractmethod
     def forward(

@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import flax.linen as nn
 import jax.numpy as jnp
@@ -14,8 +14,13 @@ class FlaxWeightGenerator(nn.Module, WeightGenerator):
     target_input_shape: Optional[Any] = None
 
     @classmethod
-    def count_params(cls, target: nn.Module, target_input_shape: Optional[Any] = None):
-        return count_jax_params(target, target_input_shape)
+    def count_params(
+        cls,
+        target: nn.Module,
+        target_input_shape: Optional[Any] = None,
+        inputs: Optional[List[Any]] = None,
+    ):
+        return count_jax_params(target, target_input_shape, inputs=inputs)
 
 
 class DefaultFlaxWeightGenerator(FlaxWeightGenerator):

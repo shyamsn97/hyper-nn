@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import math
 from collections.abc import Iterable
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import flax
 import jax.numpy as jnp
@@ -73,6 +73,7 @@ class EmbeddingModule(metaclass=abc.ABCMeta):
         cls,
         target: Union[torch.nn.Module, flax.linen.Module],
         target_input_shape: Optional[Any] = None,
+        inputs: Optional[List[Any]] = None,
     ):
         pass
 
@@ -85,11 +86,12 @@ class EmbeddingModule(metaclass=abc.ABCMeta):
         num_target_parameters: Optional[int] = None,
         hidden_dim: Optional[int] = None,
         target_input_shape: Optional[Any] = None,
+        inputs: Optional[List[Any]] = None,
         *args,
         **kwargs
     ) -> EmbeddingModule:
         if num_target_parameters is None:
-            num_target_parameters = cls.count_params(target, target_input_shape)
+            num_target_parameters = cls.count_params(target, target_input_shape, inputs)
         if hidden_dim is None:
             hidden_dim = math.ceil(num_target_parameters / num_embeddings)
             if hidden_dim != 0:
@@ -130,11 +132,12 @@ class WeightGenerator(metaclass=abc.ABCMeta):
         num_target_parameters: Optional[int] = None,
         hidden_dim: Optional[int] = None,
         target_input_shape: Optional[Any] = None,
+        inputs: Optional[List[Any]] = None,
         *args,
         **kwargs
     ) -> WeightGenerator:
         if num_target_parameters is None:
-            num_target_parameters = cls.count_params(target, target_input_shape)
+            num_target_parameters = cls.count_params(target, target_input_shape, inputs)
         if hidden_dim is None:
             hidden_dim = math.ceil(num_target_parameters / num_embeddings)
             if hidden_dim != 0:

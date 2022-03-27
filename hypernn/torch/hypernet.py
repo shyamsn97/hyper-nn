@@ -1,6 +1,6 @@
 import copy
 from collections.abc import Iterable
-from typing import Any, Dict, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
@@ -25,7 +25,7 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
     def __init__(
         self,
         target_network: nn.Module,
-        target_input_shape: Optional[Any] = None,
+        target_input_shape: Optional[List[Any]] = None,
         embedding_module: Optional[
             Union[TorchEmbeddingModule, Type[TorchEmbeddingModule]]
         ] = None,
@@ -107,10 +107,13 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         hidden_dim: Optional[int] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
+        inputs: Optional[List[Any]] = None,
         *args,
         **kwargs
     ):
-        num_target_parameters = cls.count_params(target_network, target_input_shape)
+        num_target_parameters = cls.count_params(
+            target_network, target_input_shape, inputs=inputs
+        )
         return cls(
             target_network=target_network,
             target_input_shape=target_input_shape,

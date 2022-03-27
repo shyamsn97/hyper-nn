@@ -15,8 +15,8 @@ def count_jax_params(
     if input_shape is None and inputs is None:
         raise ValueError("Input shape or inputs must be specified")
     if inputs is None:
-        inputs = jnp.zeros(input_shape)
-    variables = jax.lax.stop_gradient(model.init(jax.random.PRNGKey(0), inputs))
+        inputs = [jnp.zeros(shape) for shape in input_shape]
+    variables = model.init(jax.random.PRNGKey(0), *inputs)
 
     def count_recursive(d):
         s = 0
