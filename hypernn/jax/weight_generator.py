@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import flax.linen as nn
 import jax.numpy as jnp
@@ -27,5 +27,8 @@ class DefaultFlaxWeightGenerator(FlaxWeightGenerator):
     def setup(self):
         self.dense1 = nn.Dense(self.hidden_dim)
 
-    def __call__(self, embedding: jnp.array, inp: Optional[Any] = None):
-        return self.dense1(embedding)
+    def __call__(
+        self, embedding_module_output: Dict[str, jnp.array], inp: Optional[Any] = None
+    ) -> Dict[str, jnp.array]:
+        embedding = embedding_module_output["embedding"]
+        return {"params": self.dense1(embedding)}

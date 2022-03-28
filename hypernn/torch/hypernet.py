@@ -147,12 +147,36 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         inp: Iterable[Any] = [],
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
-    ) -> torch.Tensor:
-        embedding_output = self.embedding_module(inp, **embedding_module_kwargs)
-        params = self.weight_generator(
-            embedding_output, inp, **weight_generator_kwargs
-        ).view(-1)
-        return params, embedding_output
+    ) -> Tuple[Any, Dict[str, Any], Dict[str, Any]]:
+        """
+        Generate a vector of parameters for target network
+
+        Args:
+            inp (Optional[Any], optional): input, may be useful when creating dynamic hypernetworks
+
+        Returns:
+            Any: vector of parameters for target network
+        """
+        embedding_module_output = self.embedding_module(inp, **embedding_module_kwargs)
+        assert (
+            isinstance(embedding_module_output, dict)
+            and "embedding" in embedding_module_output
+        )
+
+        weight_generator_output = self.weight_generator(
+            embedding_module_output, inp, **weight_generator_kwargs
+        )
+
+        assert (
+            isinstance(weight_generator_output, dict)
+            and "params" in weight_generator_output
+        )
+
+        return (
+            weight_generator_output["params"],
+            embedding_module_output,
+            weight_generator_output,
+        )
 
     def forward(
         self,
@@ -160,13 +184,30 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         generated_params: Optional[torch.Tensor] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
+        has_aux: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor, Any]:
-        embedding_output = None
+
+        embedding_module_output = None
+        weight_generator_output = None
+
         if generated_params is None:
-            generated_params, embedding_output = self.generate_params(
+            (
+                generated_params,
+                embedding_module_output,
+                weight_generator_output,
+            ) = self.generate_params(
                 inp, embedding_module_kwargs, weight_generator_kwargs
             )
-        return self._target(generated_params, *inp), generated_params, embedding_output
+
+        if not has_aux:
+            return self._target(generated_params, *inp)
+
+        return (
+            self._target(generated_params, *inp),
+            generated_params,
+            embedding_module_output,
+            weight_generator_output,
+        )
 
     @property
     def device(self) -> torch.device:

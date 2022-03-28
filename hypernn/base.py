@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import abc
 import math
-from collections.abc import Iterable
 from typing import Any, Dict, List, Optional, Union
 
 import flax
@@ -184,28 +183,12 @@ class HyperNetwork(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
-    def generate_params(
-        self,
-        inp: Iterable[Any] = [],
-        embedding_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
-    ) -> Any:
-        """
-        Generate a vector of parameters for target network
-
-        Args:
-            inp (Optional[Any], optional): input, may be useful when creating dynamic hypernetworks
-
-        Returns:
-            Any: vector of parameters for target network
-        """
-
-    @abc.abstractmethod
     def forward(
         self,
         generated_params: Optional[Union[torch.tensor, jnp.array]] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
+        has_aux: bool = True,
         *args,
         **kwargs
     ):

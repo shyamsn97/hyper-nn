@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import flax.linen as nn
 import jax.numpy as jnp
@@ -23,11 +23,14 @@ class FlaxEmbeddingModule(nn.Module, EmbeddingModule):
     ):
         return count_jax_params(target, target_input_shape, inputs=inputs)
 
+    def __call__(self, inp: Optional[Any] = None) -> Dict[str, jnp.array]:
+        raise NotImplementedError("__call__ nore implemented!")
+
 
 class DefaultFlaxEmbeddingModule(FlaxEmbeddingModule):
     def setup(self):
         self.embedding = nn.Embed(self.num_embeddings, self.embedding_dim)
 
-    def __call__(self, inp: Optional[Any] = None) -> jnp.array:
+    def __call__(self, inp: Optional[Any] = None) -> Dict[str, jnp.array]:
         indices = jnp.arange(0, self.num_embeddings)
-        return self.embedding(indices)
+        return {"embedding": self.embedding(indices)}

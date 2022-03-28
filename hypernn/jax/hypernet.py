@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 import flax.linen as nn
 import jax
@@ -125,18 +125,6 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
     ):
         return count_jax_params(target, target_input_shape, inputs=inputs)
 
-    def generate_params(
-        self,
-        inp: List[Optional[Any]] = None,
-        embedding_module_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
-    ):
-        embeddings = self._embedding_module(inp, **embedding_module_kwargs)
-        generated_params = self._weight_generator(
-            embeddings, inp, **weight_generator_kwargs
-        ).reshape(-1)
-        return generated_params, embeddings
-
     def create_param_tree(self, generated_params):
         param_list = []
         curr = 0
@@ -148,25 +136,72 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
         param_tree = jax.tree_util.tree_unflatten(self.target_treedef, param_list)
         return param_tree
 
+    def generate_params(
+        self,
+        inp: Iterable[Any] = [],
+        embedding_module_kwargs: Dict[str, Any] = {},
+        weight_generator_kwargs: Dict[str, Any] = {},
+    ) -> Tuple[Any, Dict[str, Any], Dict[str, Any]]:
+        """
+        Generate a vector of parameters for target network
+
+        Args:
+            inp (Optional[Any], optional): input, may be useful when creating dynamic hypernetworks
+
+        Returns:
+            Any: vector of parameters for target network
+        """
+        embedding_module_output = self._embedding_module(inp, **embedding_module_kwargs)
+        assert (
+            isinstance(embedding_module_output, dict)
+            and "embedding" in embedding_module_output
+        )
+
+        weight_generator_output = self._weight_generator(
+            embedding_module_output, inp, **weight_generator_kwargs
+        )
+
+        assert (
+            isinstance(weight_generator_output, dict)
+            and "params" in weight_generator_output
+        )
+
+        return (
+            weight_generator_output["params"],
+            embedding_module_output,
+            weight_generator_output,
+        )
+
     def forward(
         self,
         inp: List[Any],
         generated_params: Optional[jnp.array] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
+        has_aux: bool = True,
     ):
-        embedding_output = None
+        embedding_module_output = None
+        weight_generator_output = None
+
         if generated_params is None:
-            generated_params, embedding_output = self.generate_params(
+            (
+                generated_params,
+                embedding_module_output,
+                weight_generator_output,
+            ) = self.generate_params(
                 inp, embedding_module_kwargs, weight_generator_kwargs
             )
 
         param_tree = self.create_param_tree(generated_params)
 
+        if not has_aux:
+            return target_forward(self.target_network.apply, param_tree, *inp)
+
         return (
             target_forward(self.target_network.apply, param_tree, *inp),
             generated_params,
-            embedding_output,
+            embedding_module_output,
+            weight_generator_output,
         )
 
     def __call__(
@@ -175,9 +210,14 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
         generated_params: Optional[jnp.array] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
+        has_aux: bool = True,
     ) -> Tuple[jnp.array, List[jnp.array]]:
         return self.forward(
-            inp, generated_params, embedding_module_kwargs, weight_generator_kwargs
+            inp,
+            generated_params,
+            embedding_module_kwargs,
+            weight_generator_kwargs,
+            has_aux,
         )
 
     def save(self, params, path: str):

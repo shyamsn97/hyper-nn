@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterable
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -41,7 +41,9 @@ class TorchEmbeddingModule(nn.Module, EmbeddingModule, metaclass=abc.ABCMeta):
         return self.__device_param_dummy__.device
 
     @abc.abstractmethod
-    def forward(self, inp: Iterable[Any] = [], *args, **kwargs) -> torch.Tensor:
+    def forward(
+        self, inp: Iterable[Any] = [], *args, **kwargs
+    ) -> Dict[str, torch.Tensor]:
         """
         Generate Embedding
         """
@@ -57,6 +59,8 @@ class DefaultTorchEmbeddingModule(TorchEmbeddingModule):
         super().__init__(embedding_dim, num_embeddings, target_input_shape)
         self.embedding = nn.Embedding(num_embeddings, embedding_dim)
 
-    def forward(self, inp: Iterable[Any] = [], *args, **kwargs) -> torch.Tensor:
+    def forward(
+        self, inp: Iterable[Any] = [], *args, **kwargs
+    ) -> Dict[str, torch.Tensor]:
         indices = torch.arange(self.num_embeddings).to(self.device)
-        return self.embedding(indices)
+        return {"embedding": self.embedding(indices)}

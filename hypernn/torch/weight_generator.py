@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterable
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -39,8 +39,12 @@ class TorchWeightGenerator(nn.Module, WeightGenerator, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def forward(
-        self, embedding: torch.Tensor, inp: Iterable[Any] = [], *args, **kwargs
-    ) -> torch.Tensor:
+        self,
+        embedding_module_output: Dict[str, torch.Tensor],
+        inp: Iterable[Any] = [],
+        *args,
+        **kwargs
+    ) -> Dict[str, torch.Tensor]:
         """
         Generate Embedding
         """
@@ -62,6 +66,11 @@ class DefaultTorchWeightGenerator(TorchWeightGenerator):
         self.generator = nn.Linear(embedding_dim, hidden_dim)
 
     def forward(
-        self, embedding: torch.Tensor, inp: Iterable[Any] = [], *args, **kwargs
-    ) -> torch.Tensor:
-        return self.generator(embedding).view(-1)
+        self,
+        embedding_module_output: Dict[str, torch.Tensor],
+        inp: Iterable[Any] = [],
+        *args,
+        **kwargs
+    ) -> Dict[str, torch.Tensor]:
+        embedding = embedding_module_output["embedding"]
+        return {"params": self.generator(embedding).view(-1)}
