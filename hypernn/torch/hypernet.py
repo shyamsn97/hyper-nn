@@ -139,8 +139,9 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         target: nn.Module,
         target_input_shape: Optional[Any] = None,
         return_variables: bool = False,
+        inputs: Optional[Any] = None,
     ):
-        return count_params(target, target_input_shape, return_variables)
+        return count_params(target, target_input_shape, inputs=inputs)
 
     def generate_params(
         self,
