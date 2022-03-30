@@ -136,6 +136,28 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
         param_tree = jax.tree_util.tree_unflatten(self.target_treedef, param_list)
         return param_tree
 
+    def verify_embedding_module(self, embedding_module_output: Dict[str, Any]):
+        try:
+            assert (
+                isinstance(embedding_module_output, dict)
+                and "embedding" in embedding_module_output
+            )
+        except Exception:
+            raise ValueError(
+                'embedding_module_output should be a dictionary with required keys: "embedding"'
+            )
+
+    def verify_weight_generator(self, weight_generator_output: Dict[str, Any]):
+        try:
+            assert (
+                isinstance(weight_generator_output, dict)
+                and "params" in weight_generator_output
+            )
+        except Exception:
+            raise ValueError(
+                'weight_generator_output should be a dictionary with required keys: "params"'
+            )
+
     def generate_params(
         self,
         inp: Iterable[Any] = [],
@@ -152,19 +174,12 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
             Any: vector of parameters for target network
         """
         embedding_module_output = self._embedding_module(inp, **embedding_module_kwargs)
-        assert (
-            isinstance(embedding_module_output, dict)
-            and "embedding" in embedding_module_output
-        )
+        self.verify_embedding_module(embedding_module_output)
 
         weight_generator_output = self._weight_generator(
             embedding_module_output, inp, **weight_generator_kwargs
         )
-
-        assert (
-            isinstance(weight_generator_output, dict)
-            and "params" in weight_generator_output
-        )
+        self.verify_weight_generator(weight_generator_output)
 
         return (
             weight_generator_output["params"],
