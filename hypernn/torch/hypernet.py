@@ -138,36 +138,15 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         cls,
         target: nn.Module,
         target_input_shape: Optional[Any] = None,
-        return_variables: bool = False,
         inputs: Optional[Any] = None,
+        return_variables: bool = False,
     ):
         return count_params(target, target_input_shape, inputs=inputs)
-
-    def verify_embedding_module(self, embedding_module_output: Dict[str, Any]):
-        try:
-            assert (
-                isinstance(embedding_module_output, dict)
-                and "embedding" in embedding_module_output
-            )
-        except Exception:
-            raise ValueError(
-                'embedding_module_output should be a dictionary with required keys: "embedding"'
-            )
-
-    def verify_weight_generator(self, weight_generator_output: Dict[str, Any]):
-        try:
-            assert (
-                isinstance(weight_generator_output, dict)
-                and "params" in weight_generator_output
-            )
-        except Exception:
-            raise ValueError(
-                'weight_generator_output should be a dictionary with required keys: "params"'
-            )
 
     def generate_params(
         self,
         inp: Iterable[Any] = [],
+        embedding: Optional[nn.Module] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
     ) -> Tuple[Any, Dict[str, Any], Dict[str, Any]]:
@@ -180,16 +159,21 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         Returns:
             Any: vector of parameters for target network
         """
-        embedding_module_output = self.embedding_module(inp, **embedding_module_kwargs)
-        self.verify_embedding_module(embedding_module_output)
+        embedding_module_output = {}
+        weight_generator_output = {}
 
-        weight_generator_output = self.weight_generator(
-            embedding_module_output, inp, **weight_generator_kwargs
+        if embedding is None:
+            embedding, embedding_module_output = self.embedding_module(
+                inp, **embedding_module_kwargs
+            )
+
+        generated_params, weight_generator_output = self.weight_generator(
+            embedding, inp, **weight_generator_kwargs
         )
-        self.verify_weight_generator(weight_generator_output)
 
         return (
-            weight_generator_output["params"],
+            generated_params,
+            embedding,
             embedding_module_output,
             weight_generator_output,
         )
@@ -198,6 +182,7 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         self,
         inp: Iterable[Any] = [],
         generated_params: Optional[torch.Tensor] = None,
+        embedding: Optional[torch.Tensor] = None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
         has_aux: bool = True,
@@ -209,10 +194,11 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         if generated_params is None:
             (
                 generated_params,
+                embedding,
                 embedding_module_output,
                 weight_generator_output,
             ) = self.generate_params(
-                inp, embedding_module_kwargs, weight_generator_kwargs
+                inp, embedding, embedding_module_kwargs, weight_generator_kwargs
             )
 
         if not has_aux:
@@ -221,6 +207,7 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         return (
             self._target(generated_params, *inp),
             generated_params,
+            embedding,
             embedding_module_output,
             weight_generator_output,
         )

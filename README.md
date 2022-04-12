@@ -78,7 +78,7 @@ For gpu functionality with Jax, you will need to follow the instructions [here](
 ### Key Components 
 
 #### EmbeddingModule
-`EmbeddingModule` outputs a matrix of size `num_embeddings x embedding_dim`, where each row contains some information about layer(s) in the target network.
+`EmbeddingModule` outputs dictionary with required a required key: `embedding`: a matrix of size `num_embeddings x embedding_dim`, where each row contains some information about layer(s) in the target network. Extra information can be returned as well as additional elements in the dictionary. This is useful for accessing some particular information from the EmbeddingModule directly, like a hidden state in a dynamic hypernetwork.
 
 <details><summary> <b>Pytorch</b> </summary>
 <p>
@@ -101,7 +101,7 @@ class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def forward(self, inp: Optional[Any] = None, *args, **kwargs) -> torch.Tensor:
         """
-        Generate Embedding
+            Generate Embedding
         """
 
 ```
