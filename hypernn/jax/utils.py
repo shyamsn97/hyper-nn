@@ -1,9 +1,20 @@
+import math
 from typing import List, Optional, Tuple
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import numpy as np
+
+
+def get_hidden_weight_generator_dims(num_target_parameters: int, num_embeddings: int):
+    hidden_dim = math.ceil(num_target_parameters / num_embeddings)
+    if hidden_dim != 0:
+        remainder = num_target_parameters % hidden_dim
+        if remainder > 0:
+            diff = math.ceil(remainder / hidden_dim)
+            num_embeddings += diff
+    return hidden_dim
 
 
 def count_jax_params(

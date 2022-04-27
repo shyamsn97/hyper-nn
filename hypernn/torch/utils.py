@@ -1,7 +1,19 @@
+import math
+
 import numpy as np
 import torch
 import torch.nn as nn
 from functorch import make_functional
+
+
+def get_hidden_weight_generator_dims(num_target_parameters: int, num_embeddings: int):
+    hidden_dim = math.ceil(num_target_parameters / num_embeddings)
+    if hidden_dim != 0:
+        remainder = num_target_parameters % hidden_dim
+        if remainder > 0:
+            diff = math.ceil(remainder / hidden_dim)
+            num_embeddings += diff
+    return hidden_dim
 
 
 def count_params(module: nn.Module, input_shape=None, inputs=None):
