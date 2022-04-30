@@ -41,7 +41,7 @@ class BaseTorchHyperNetwork(nn.Module, HyperNetwork, metaclass=abc.ABCMeta):
         num_target_parameters: Optional[int] = None,
         inputs: Optional[List[Any]] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> BaseTorchHyperNetwork:
         if num_target_parameters is None:
             num_target_parameters = cls.count_params(
@@ -51,7 +51,7 @@ class BaseTorchHyperNetwork(nn.Module, HyperNetwork, metaclass=abc.ABCMeta):
             target_network=target_network,
             num_target_parameters=num_target_parameters,
             *args,
-            **kwargs
+            **kwargs,
         )
 
     @classmethod
@@ -76,7 +76,7 @@ class BaseTorchHyperNetwork(nn.Module, HyperNetwork, metaclass=abc.ABCMeta):
         generated_params: Optional[torch.Tensor] = None,
         has_aux: bool = False,
         *args,
-        **kwargs
+        **kwargs,
     ):
         aux_output = {}
         if generated_params is None:

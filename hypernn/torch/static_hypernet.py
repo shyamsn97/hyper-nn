@@ -61,7 +61,7 @@ class TorchHyperNetwork(BaseTorchHyperNetwork):
         weight_generator_module: Optional[nn.Module] = None,
         inputs: Optional[List[Any]] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> TorchHyperNetwork:
         if num_target_parameters is None:
             num_target_parameters = cls.count_params(
@@ -80,5 +80,5 @@ class TorchHyperNetwork(BaseTorchHyperNetwork):
             embedding_module=embedding_module,
             weight_generator_module=weight_generator_module,
             *args,
-            **kwargs
+            **kwargs,
         )

@@ -56,7 +56,7 @@ class FlaxHyperNetwork(BaseFlaxHyperNetwork):
         weight_generator_module: Optional[nn.Module] = None,
         inputs: Optional[List[Any]] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> FlaxHyperNetwork:
         num_target_parameters, variables = cls.count_params(
             target_network, target_input_shape, inputs=inputs, return_variables=True
@@ -79,5 +79,5 @@ class FlaxHyperNetwork(BaseFlaxHyperNetwork):
             embedding_module=embedding_module,
             weight_generator_module=weight_generator_module,
             *args,
-            **kwargs
+            **kwargs,
         )

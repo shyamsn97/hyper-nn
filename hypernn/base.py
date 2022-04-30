@@ -65,7 +65,7 @@ class BaseModule(metaclass=abc.ABCMeta):
         target_input_shape: Optional[Any] = None,
         inputs: Optional[List[Any]] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> BaseModule:
         if num_target_parameters is None:
             num_target_parameters = cls.count_params(target, target_input_shape, inputs)
@@ -108,7 +108,7 @@ class HyperNetwork(metaclass=abc.ABCMeta):
         weight_generator_kwargs: Dict[str, Any] = {},
         has_aux: bool = True,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """
         Computes a forward pass with generated parameters or with parameters that are passed in
