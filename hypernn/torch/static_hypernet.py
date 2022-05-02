@@ -31,16 +31,24 @@ class TorchHyperNetwork(BaseTorchHyperNetwork):
 
     def setup(self) -> None:
         if self.embedding_module is None:
-            self.embedding_module = nn.Embedding(self.num_embeddings, self.embedding_dim)
+            self.embedding_module = nn.Embedding(
+                self.num_embeddings, self.embedding_dim
+            )
 
         if self.weight_generator_module is None:
-            self.weight_generator_module = nn.Linear(self.embedding_dim, self.hidden_dim)
+            self.weight_generator_module = nn.Linear(
+                self.embedding_dim, self.hidden_dim
+            )
 
     def embedding(self, *args, **kwargs) -> torch.Tensor:
-        embedding = self.embedding_module(torch.arange(self.num_embeddings).to(self.device))
+        embedding = self.embedding_module(
+            torch.arange(self.num_embeddings).to(self.device)
+        )
         return embedding
 
-    def weight_generator(self, embedding: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+    def weight_generator(
+        self, embedding: torch.Tensor, *args, **kwargs
+    ) -> torch.Tensor:
         return self.weight_generator_module(embedding).view(-1)
 
     def generate_params(
