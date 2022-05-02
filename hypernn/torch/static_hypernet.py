@@ -25,27 +25,29 @@ class TorchHyperNetwork(BaseTorchHyperNetwork):
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
         self.hidden_dim = hidden_dim
+        self.embedding_module = embedding_module
+        self.weight_generator_module = weight_generator_module
+        self.setup()
 
-        self.embedding = embedding_module
-        self.weight_generator = weight_generator_module
+    def setup(self) -> None:
+        if self.embedding_module is None:
+            self.embedding_module = nn.Embedding(self.num_embeddings, self.embedding_dim)
 
-        if self.embedding is None:
-            self.embedding = self.make_embedding()
+        if self.weight_generator_module is None:
+            self.weight_generator_module = nn.Linear(self.embedding_dim, self.hidden_dim)
 
-        if self.weight_generator is None:
-            self.weight_generator = self.make_weight_generator()
+    def embedding(self, *args, **kwargs) -> torch.Tensor:
+        embedding = self.embedding_module(torch.arange(self.num_embeddings).to(self.device))
+        return embedding
 
-    def make_embedding(self) -> nn.Module:
-        return nn.Embedding(self.num_embeddings, self.embedding_dim)
-
-    def make_weight_generator(self) -> nn.Module:
-        return nn.Linear(self.embedding_dim, self.hidden_dim)
+    def weight_generator(self, embedding: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        return self.weight_generator_module(embedding).view(-1)
 
     def generate_params(
         self, inp: Iterable[Any] = []
     ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        embedding = self.embedding(torch.arange(self.num_embeddings).to(self.device))
-        generated_params = self.weight_generator(embedding).view(-1)
+        embedding = self.embedding()
+        generated_params = self.weight_generator(embedding)
         return generated_params, {"embedding": embedding}
 
     @classmethod
@@ -61,7 +63,7 @@ class TorchHyperNetwork(BaseTorchHyperNetwork):
         weight_generator_module: Optional[nn.Module] = None,
         inputs: Optional[List[Any]] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> TorchHyperNetwork:
         if num_target_parameters is None:
             num_target_parameters = cls.count_params(
@@ -80,5 +82,5 @@ class TorchHyperNetwork(BaseTorchHyperNetwork):
             embedding_module=embedding_module,
             weight_generator_module=weight_generator_module,
             *args,
-            **kwargs
+            **kwargs,
         )

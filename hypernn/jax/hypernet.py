@@ -43,7 +43,7 @@ class BaseFlaxHyperNetwork(nn.Module, HyperNetwork, metaclass=abc.ABCMeta):
         target_input_shape: Optional[List[Any]] = None,
         inputs: Optional[List[Any]] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> BaseFlaxHyperNetwork:
         num_target_parameters, variables = cls.count_params(
             target_network, target_input_shape, inputs=inputs, return_variables=True
@@ -56,7 +56,7 @@ class BaseFlaxHyperNetwork(nn.Module, HyperNetwork, metaclass=abc.ABCMeta):
             target_treef=target_treedef,
             target_weight_shapes=target_weight_shapes,
             *args,
-            **kwargs
+            **kwargs,
         )
 
     @classmethod
@@ -83,7 +83,7 @@ class BaseFlaxHyperNetwork(nn.Module, HyperNetwork, metaclass=abc.ABCMeta):
         generated_params: Optional[jnp.array] = None,
         has_aux: bool = True,
         *args,
-        **kwargs
+        **kwargs,
     ) -> Tuple[jnp.array, List[jnp.array]]:
         aux_output = {}
         if generated_params is None:
@@ -105,7 +105,7 @@ class BaseFlaxHyperNetwork(nn.Module, HyperNetwork, metaclass=abc.ABCMeta):
         generated_params: Optional[jnp.array] = None,
         has_aux: bool = True,
         *args,
-        **kwargs
+        **kwargs,
     ) -> Tuple[jnp.array, List[jnp.array]]:
         return self.forward(inp, generated_params, has_aux, *args, **kwargs)
 
