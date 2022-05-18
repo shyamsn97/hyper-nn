@@ -20,27 +20,28 @@ class FlaxHyperNetwork(BaseFlaxHyperNetwork):
 
     def setup(self):
         if self.embedding_module is None:
-            self.embedding = self.make_embedding()
-        else:
-            self.embedding = self.embedding_module
+            self.embedding_module = nn.Embed(self.num_embeddings, self.embedding_dim)
 
         if self.weight_generator_module is None:
-            self.weight_generator = self.make_weight_generator()
-        else:
-            self.weight_generator = self.weight_generator_module
+            self.weight_generator_module = nn.Dense(self.hidden_dim)
 
-    def make_embedding(self) -> nn.Module:
-        return nn.Embed(self.num_embeddings, self.embedding_dim)
+    def embedding(self, *args, **kwargs) -> jnp.array:
+        indices = jnp.arange(0, self.num_embeddings)
+        embedding = self.embedding_module(
+            indices
+        )
+        return embedding
 
-    def make_weight_generator(self) -> nn.Module:
-        return nn.Dense(self.hidden_dim)
+    def weight_generator(
+        self, embedding: jnp.array, *args, **kwargs
+    ) -> jnp.array:
+        return self.weight_generator(embedding).reshape(-1)
 
     def generate_params(
         self, inp: Iterable[Any] = []
     ) -> Tuple[jnp.array, Dict[str, Any]]:
-        indices = jnp.arange(0, self.num_embeddings)
-        embedding = self.embedding(indices)
-        generated_params = self.weight_generator(embedding).reshape(-1)
+        embedding = self.embedding()
+        generated_params = self.weight_generator(embedding)
         return generated_params, {"embedding": embedding}
 
     @classmethod
