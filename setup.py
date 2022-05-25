@@ -29,12 +29,12 @@ setup(
     packages=find_packages(exclude=('tests',)),
 
     install_requires=[
-        # 'functorch==0.1.0',
-        'torch==1.11.0',
+        'numpy',
+        'torch',
         'functorch',
         'flax',
         'jax',
-        'einops'
+        'einops',
     ],
 
     classifiers=[

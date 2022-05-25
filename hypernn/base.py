@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, List, Optional, Union
-
-import flax
-import jax.numpy as jnp
-import torch
+from typing import Any, Dict, Optional
 
 """
                             Static HyperNetwork
@@ -56,28 +52,12 @@ import torch
 """
 
 
-class BaseModule(metaclass=abc.ABCMeta):
-    @classmethod
-    def from_target(
-        cls,
-        target: Union[torch.nn.Module, flax.linen.Module],
-        num_target_parameters: Optional[int] = None,
-        target_input_shape: Optional[Any] = None,
-        inputs: Optional[List[Any]] = None,
-        *args,
-        **kwargs,
-    ) -> BaseModule:
-        if num_target_parameters is None:
-            num_target_parameters = cls.count_params(target, target_input_shape, inputs)
-        return cls(num_target_parameters, *args, **kwargs)
-
-
 class HyperNetwork(metaclass=abc.ABCMeta):
     @classmethod
     @abc.abstractmethod
     def count_params(
         cls,
-        target: Union[torch.nn.Module, flax.linen.Module],
+        target,
         target_input_shape: Optional[Any] = None,
     ):
         """
@@ -90,9 +70,7 @@ class HyperNetwork(metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
-    def from_target(
-        cls, target: Union[torch.nn.Module, flax.linen.Module], *args, **kwargs
-    ) -> HyperNetwork:
+    def from_target(cls, target, *args, **kwargs) -> HyperNetwork:
         """
         creates hypernetwork from target
 
@@ -103,7 +81,7 @@ class HyperNetwork(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def forward(
         self,
-        generated_params: Optional[Union[torch.tensor, jnp.array]] = None,
+        generated_params=None,
         embedding_module_kwargs: Dict[str, Any] = {},
         weight_generator_kwargs: Dict[str, Any] = {},
         has_aux: bool = True,

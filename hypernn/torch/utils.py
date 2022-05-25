@@ -6,14 +6,14 @@ import torch.nn as nn
 from functorch import make_functional, make_functional_with_buffers
 
 
-def get_hidden_weight_generator_dims(num_target_parameters: int, num_embeddings: int):
-    hidden_dim = math.ceil(num_target_parameters / num_embeddings)
-    if hidden_dim != 0:
-        remainder = num_target_parameters % hidden_dim
+def get_weight_chunk_dims(num_target_parameters: int, num_embeddings: int):
+    weight_chunk_dim = math.ceil(num_target_parameters / num_embeddings)
+    if weight_chunk_dim != 0:
+        remainder = num_target_parameters % weight_chunk_dim
         if remainder > 0:
-            diff = math.ceil(remainder / hidden_dim)
+            diff = math.ceil(remainder / weight_chunk_dim)
             num_embeddings += diff
-    return hidden_dim
+    return weight_chunk_dim
 
 
 def count_params(module: nn.Module, input_shape=None, inputs=None):
