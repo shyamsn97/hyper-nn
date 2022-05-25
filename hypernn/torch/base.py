@@ -71,7 +71,7 @@ class BaseTorchHyperNetwork(nn.Module, HyperNetwork, metaclass=abc.ABCMeta):
         pass
 
     def assert_parameter_shapes(self, generated_params):
-        assert generated_params.shape[-1] == self.num_target_parameters
+        assert generated_params.shape[-1] >= self.num_target_parameters
 
     def forward(
         self,
