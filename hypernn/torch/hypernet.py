@@ -100,7 +100,6 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         target: nn.Module,
         target_input_shape: Optional[Any] = None,
         inputs: Optional[Any] = None,
-        return_variables: bool = False,
     ):
         return count_params(target, target_input_shape, inputs=inputs)
 

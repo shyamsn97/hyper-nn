@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 """
                             Static HyperNetwork
@@ -39,7 +39,7 @@ from typing import Any, Dict, Optional
     │ ┌─────▼─────┐          ┌────────▼────────┐ │  │  ┌─────────────────┐  │
     │ │           │          │                 │ │  │  │                 │  │
     │ │ Embedding ├─────────►│ Weight Generator├─┼──┼─►│Generated Weights│  │
-    │ │  Module   │          │                 │ │  │  │                 │  │
+    │ │           │          │                 │ │  │  │                 │  │
     │ └───────────┘          └─────────────────┘ │  │  └─────────────────┘  │
     │                                            │  │                       │
     └────────────────────────────────────────────┘  └───────────┬───────────┘
@@ -53,6 +53,34 @@ from typing import Any, Dict, Optional
 
 
 class HyperNetwork(metaclass=abc.ABCMeta):
+    embedding_module = None
+    weight_generator = None
+
+    def setup(self) -> None:
+        if self.embedding_module is None:
+            self.embedding_module = self.make_embedding_module()
+
+        if self.weight_generator is None:
+            self.weight_generator = self.make_weight_generator()
+
+    @abc.abstractmethod
+    def make_embedding_module(self):
+        """
+        Makes an embedding module to be used
+
+        Returns:
+            a torch.nn.Module or flax.linen.Module that can be used to return an embedding matrix to be used to generate weights
+        """
+
+    @abc.abstractmethod
+    def make_weight_generator(self):
+        """
+        Makes an embedding module to be used
+
+        Returns:
+            a torch.nn.Module or flax.linen.Module that can be used to return an embedding matrix to be used to generate weights
+        """
+
     @classmethod
     @abc.abstractmethod
     def count_params(
@@ -79,11 +107,24 @@ class HyperNetwork(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
+    def generate_params(
+        self, inp: Optional[Any] = None, *args, **kwargs
+    ) -> Tuple[Any, Dict[str, Any]]:
+        """
+        Generate a vector of parameters for target network
+
+        Args:
+            inp (Optional[Any], optional): input, may be useful when creating dynamic hypernetworks
+
+        Returns:
+            Any: vector of parameters for target network and a dictionary of extra info
+        """
+
+    @abc.abstractmethod
     def forward(
         self,
+        inp: Iterable[Any] = [],
         generated_params=None,
-        embedding_module_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
         has_aux: bool = True,
         *args,
         **kwargs,
@@ -93,7 +134,8 @@ class HyperNetwork(metaclass=abc.ABCMeta):
 
         Args:
             inp (Any): input from system
-            params (Optional[Union[torch.tensor, jnp.array]], optional): Generated params. Defaults to None.
+            generated_params (Optional[Union[torch.tensor, jnp.array]], optional): Generated params. Defaults to None.
+            has_aux (bool): flag to indicate whether to return auxiliary info
         Returns:
-            returns output and generated parameters
+            returns output and generated params and auxiliary info if has_aux is provided
         """
