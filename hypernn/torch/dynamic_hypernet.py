@@ -9,7 +9,7 @@ import torch.nn as nn
 from hypernn.torch.hypernet import TorchHyperNetwork
 
 
-class DynamicEmbeddingModule(nn.Module):
+class TorchDynamicEmbeddingModule(nn.Module):
     def __init__(self, input_dim: int, embedding_dim: int, num_embeddings: int):
         super().__init__()
         self.input_dim = input_dim
@@ -31,7 +31,7 @@ class DynamicEmbeddingModule(nn.Module):
 
     def forward(
         self,
-        inp: Optional[torch.Tensor] = None,
+        inp: torch.Tensor,
         hidden_state: Optional[torch.Tensor] = None,
     ):
         if hidden_state is None:
@@ -42,7 +42,7 @@ class DynamicEmbeddingModule(nn.Module):
         return embedding, hidden_state
 
 
-class DynamicHyperNetwork(TorchHyperNetwork):
+class TorchDynamicHyperNetwork(TorchHyperNetwork):
     def __init__(
         self,
         input_dim: int,
@@ -67,7 +67,7 @@ class DynamicHyperNetwork(TorchHyperNetwork):
         )
 
     def make_embedding_module(self) -> nn.Module:
-        return DynamicEmbeddingModule(
+        return TorchDynamicEmbeddingModule(
             self.input_dim, self.embedding_dim, self.num_embeddings
         )
 
@@ -77,6 +77,6 @@ class DynamicHyperNetwork(TorchHyperNetwork):
     def generate_params(
         self, inp: Iterable[Any] = [], hidden_state: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        embedding, hidden_state = self.embedding(*inp, hidden_state=hidden_state)
-        generated_params = self.weight_generator(embedding)
+        embedding, hidden_state = self.embedding_module(*inp, hidden_state=hidden_state)
+        generated_params = self.weight_generator(embedding).view(-1)
         return generated_params, {"embedding": embedding, "hidden_state": hidden_state}
