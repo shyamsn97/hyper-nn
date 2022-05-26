@@ -1,13 +1,7 @@
 from __future__ import annotations
 
 import abc
-import math
-from collections.abc import Iterable
-from typing import Any, Dict, List, Optional, Union
-
-import flax
-import jax.numpy as jnp
-import torch
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 """
                             Static HyperNetwork
@@ -45,7 +39,7 @@ import torch
     │ ┌─────▼─────┐          ┌────────▼────────┐ │  │  ┌─────────────────┐  │
     │ │           │          │                 │ │  │  │                 │  │
     │ │ Embedding ├─────────►│ Weight Generator├─┼──┼─►│Generated Weights│  │
-    │ │  Module   │          │                 │ │  │  │                 │  │
+    │ │           │          │                 │ │  │  │                 │  │
     │ └───────────┘          └─────────────────┘ │  │  └─────────────────┘  │
     │                                            │  │                       │
     └────────────────────────────────────────────┘  └───────────┬───────────┘
@@ -58,109 +52,40 @@ import torch
 """
 
 
-class EmbeddingModule(metaclass=abc.ABCMeta):
-    def __init__(
-        self,
-        embedding_dim: int,
-        num_embeddings: int,
-        target_input_shape: Optional[Any] = None,
-    ):
-        pass
-
-    @classmethod
-    @abc.abstractmethod
-    def count_params(
-        cls,
-        target: Union[torch.nn.Module, flax.linen.Module],
-        target_input_shape: Optional[Any] = None,
-        inputs: Optional[List[Any]] = None,
-    ):
-        pass
-
-    @classmethod
-    def from_target(
-        cls,
-        target: Union[torch.nn.Module, flax.linen.Module],
-        embedding_dim: int,
-        num_embeddings: int,
-        num_target_parameters: Optional[int] = None,
-        hidden_dim: Optional[int] = None,
-        target_input_shape: Optional[Any] = None,
-        inputs: Optional[List[Any]] = None,
-        *args,
-        **kwargs
-    ) -> EmbeddingModule:
-        if num_target_parameters is None:
-            num_target_parameters = cls.count_params(target, target_input_shape, inputs)
-        if hidden_dim is None:
-            hidden_dim = math.ceil(num_target_parameters / num_embeddings)
-            if hidden_dim != 0:
-                remainder = num_target_parameters % hidden_dim
-                if remainder > 0:
-                    diff = math.ceil(remainder / hidden_dim)
-                    num_embeddings += diff
-        return cls(embedding_dim, num_embeddings, target_input_shape, *args, **kwargs)
-
-
-class WeightGenerator(metaclass=abc.ABCMeta):
-    def __init__(
-        self,
-        embedding_dim: int,
-        num_embeddings: int,
-        hidden_dim: int,
-        target_input_shape: Optional[Any] = None,
-    ):
-        pass
-
-    @classmethod
-    @abc.abstractmethod
-    def count_params(
-        cls,
-        target: Union[torch.nn.Module, flax.linen.Module],
-        target_input_shape: Optional[Any] = None,
-        *args,
-        **kwargs
-    ):
-        pass
-
-    @classmethod
-    def from_target(
-        cls,
-        target: Union[torch.nn.Module, flax.linen.Module],
-        embedding_dim: int,
-        num_embeddings: int,
-        num_target_parameters: Optional[int] = None,
-        hidden_dim: Optional[int] = None,
-        target_input_shape: Optional[Any] = None,
-        inputs: Optional[List[Any]] = None,
-        *args,
-        **kwargs
-    ) -> WeightGenerator:
-        if num_target_parameters is None:
-            num_target_parameters = cls.count_params(target, target_input_shape, inputs)
-        if hidden_dim is None:
-            hidden_dim = math.ceil(num_target_parameters / num_embeddings)
-            if hidden_dim != 0:
-                remainder = num_target_parameters % hidden_dim
-                if remainder > 0:
-                    diff = math.ceil(remainder / hidden_dim)
-                    num_embeddings += diff
-        return cls(
-            embedding_dim,
-            num_embeddings,
-            hidden_dim,
-            target_input_shape,
-            *args,
-            **kwargs
-        )
-
-
 class HyperNetwork(metaclass=abc.ABCMeta):
+    embedding_module = None
+    weight_generator = None
+
+    def setup(self) -> None:
+        if self.embedding_module is None:
+            self.embedding_module = self.make_embedding_module()
+
+        if self.weight_generator is None:
+            self.weight_generator = self.make_weight_generator()
+
+    @abc.abstractmethod
+    def make_embedding_module(self):
+        """
+        Makes an embedding module to be used
+
+        Returns:
+            a torch.nn.Module or flax.linen.Module that can be used to return an embedding matrix to be used to generate weights
+        """
+
+    @abc.abstractmethod
+    def make_weight_generator(self):
+        """
+        Makes an embedding module to be used
+
+        Returns:
+            a torch.nn.Module or flax.linen.Module that can be used to return an embedding matrix to be used to generate weights
+        """
+
     @classmethod
     @abc.abstractmethod
     def count_params(
         cls,
-        target: Union[torch.nn.Module, flax.linen.Module],
+        target,
         target_input_shape: Optional[Any] = None,
     ):
         """
@@ -173,9 +98,7 @@ class HyperNetwork(metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
-    def from_target(
-        cls, target: Union[torch.nn.Module, flax.linen.Module], *args, **kwargs
-    ) -> HyperNetwork:
+    def from_target(cls, target, *args, **kwargs) -> HyperNetwork:
         """
         creates hypernetwork from target
 
@@ -185,11 +108,8 @@ class HyperNetwork(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def generate_params(
-        self,
-        inp: Iterable[Any] = [],
-        embedding_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
-    ) -> Any:
+        self, inp: Optional[Any] = None, *args, **kwargs
+    ) -> Tuple[Any, Dict[str, Any]]:
         """
         Generate a vector of parameters for target network
 
@@ -197,24 +117,25 @@ class HyperNetwork(metaclass=abc.ABCMeta):
             inp (Optional[Any], optional): input, may be useful when creating dynamic hypernetworks
 
         Returns:
-            Any: vector of parameters for target network
+            Any: vector of parameters for target network and a dictionary of extra info
         """
 
     @abc.abstractmethod
     def forward(
         self,
-        generated_params: Optional[Union[torch.tensor, jnp.array]] = None,
-        embedding_module_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
+        inp: Iterable[Any] = [],
+        generated_params=None,
+        has_aux: bool = True,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """
         Computes a forward pass with generated parameters or with parameters that are passed in
 
         Args:
             inp (Any): input from system
-            params (Optional[Union[torch.tensor, jnp.array]], optional): Generated params. Defaults to None.
+            generated_params (Optional[Union[torch.tensor, jnp.array]], optional): Generated params. Defaults to None.
+            has_aux (bool): flag to indicate whether to return auxiliary info
         Returns:
-            returns output and generated parameters
+            returns output and generated params and auxiliary info if has_aux is provided
         """

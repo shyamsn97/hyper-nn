@@ -1,9 +1,20 @@
+import math
 from typing import List, Optional, Tuple
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import numpy as np
+
+
+def get_weight_chunk_dims(num_target_parameters: int, num_embeddings: int):
+    weight_chunk_dim = math.ceil(num_target_parameters / num_embeddings)
+    if weight_chunk_dim != 0:
+        remainder = num_target_parameters % weight_chunk_dim
+        if remainder > 0:
+            diff = math.ceil(remainder / weight_chunk_dim)
+            num_embeddings += diff
+    return weight_chunk_dim
 
 
 def count_jax_params(

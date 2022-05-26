@@ -1,7 +1,19 @@
+import math
+
 import numpy as np
 import torch
 import torch.nn as nn
-from functorch import make_functional
+from functorch import make_functional, make_functional_with_buffers
+
+
+def get_weight_chunk_dims(num_target_parameters: int, num_embeddings: int):
+    weight_chunk_dim = math.ceil(num_target_parameters / num_embeddings)
+    if weight_chunk_dim != 0:
+        remainder = num_target_parameters % weight_chunk_dim
+        if remainder > 0:
+            diff = math.ceil(remainder / weight_chunk_dim)
+            num_embeddings += diff
+    return weight_chunk_dim
 
 
 def count_params(module: nn.Module, input_shape=None, inputs=None):
@@ -15,7 +27,14 @@ class FunctionalParamVectorWrapper(nn.Module):
 
     def __init__(self, module: nn.Module):
         super(FunctionalParamVectorWrapper, self).__init__()
-        _functional, self.named_params = make_functional(module)
+        self.custom_buffers = None
+        try:
+            _functional, self.named_params = make_functional(module)
+        except Exception:
+            _functional, self.named_params, buffers = make_functional_with_buffers(
+                module
+            )
+            self.custom_buffers = buffers
         self.functional = [_functional]  # remove params from being counted
 
     def forward(self, param_vector: torch.Tensor, *args, **kwargs):
@@ -25,4 +44,6 @@ class FunctionalParamVectorWrapper(nn.Module):
             end = start + np.prod(p.size())
             params.append(param_vector[start:end].view(p.size()))
             start = end
+        if self.custom_buffers is not None:
+            return self.functional[0](params, self.custom_buffers, *args, **kwargs)
         return self.functional[0](params, *args, **kwargs)

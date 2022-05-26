@@ -1,62 +1,9 @@
-# hyper-nn (Easy Hypernetworks in Pytorch and Jax)
-**Note: This library is experimental and currently under development - the jax implementations in particular are far from perfect and can be improved. If you have any suggestions on how to improve this library, please open a github issue or feel free to reach out directly!**
+# hyper-nn (Easy Hypernetworks in Pytorch and Jax (using Flax))
+**Note: This library is experimental and currently under development - the flax implementations in particular are far from perfect and can be improved. If you have any suggestions on how to improve this library, please open a github issue or feel free to reach out directly!**
 
 `hyper-nn` gives users with the ability to create easily customizable [Hypernetworks](https://arxiv.org/abs/1609.09106) for almost any generic `torch.nn.Module` from [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) and `flax.linen.Module` from [Flax](https://flax.readthedocs.io/en/latest/flax.linen.html). Our Hypernetwork objects are also `torch.nn.Modules` and `flax.linen.Modules`, allowing for easy integration with existing systems
 
-
-## What are Hypernetworks?
-Hypernetworks, simply put, are neural networks that generate parameters for another neural network. They can be incredibly powerful, being able to represent large networks while using only a fraction of their parameters.
-
-`hyper-nn` represents Hypernetworks with two key components: an Embedding that holds information about layer(s) in the target network and a Weight Generator, which takes in the embedding and outputs a parameter vector for the target network. 
-
-Hypernetworks also come in two variants, static or dynamic. Static Hypernetworks have a fixed or learned embedding and weight generator that outputs the target networks’ weights deterministically. Dynamic Hypernetworks instead receive inputs and use them to generate dynamic weights.
-
-#### Static Hypernetwork
-
-                                                          ┌───────────┐                    
-                                                          │   Input   │
-                                                          └─────┬─────┘
-                                                                │
-                                                                ▼
-    ┌────────────────────────────────────────────┐  ┌───────────────────────┐
-    │                                            │  │                       │
-    │              HyperNetwork                  │  │     Target Network    │
-    │ ┌───────────┐          ┌─────────────────┐ │  │  ┌─────────────────┐  │
-    │ │           │          │                 │ │  │  │                 │  │
-    │ │ Embedding ├─────────►│ Weight Generator├─┼──┼─►│Generated Weights│  │
-    │ │  Module   │          │                 │ │  │  │                 │  │
-    │ └───────────┘          └─────────────────┘ │  │  └─────────────────┘  │
-    │                                            │  │                       │
-    └────────────────────────────────────────────┘  └───────────┬───────────┘
-                                                                │
-                                                                ▼
-                                                          ┌───────────┐
-                                                          │   Output  │
-                                                          └───────────┘
-
-#### Dynamic Hypernetwork
-
-                                                          ┌───────────┐
-            ┌───────────────── and/or ┌───────────────────┤   Input   │
-            │                         │                   └─────┬─────┘
-            │                         │                         │
-            │                         │                         ▼
-    ┌───────┼─────────────────────────┼──────────┐  ┌───────────────────────┐
-    │       │                         │          │  │                       │
-    │       │      HyperNetwork       │          │  │     Target Network    │
-    │ ┌─────▼─────┐          ┌────────▼────────┐ │  │  ┌─────────────────┐  │
-    │ │           │          │                 │ │  │  │                 │  │
-    │ │ Embedding ├─────────►│ Weight Generator├─┼──┼─►│Generated Weights│  │
-    │ │  Module   │          │                 │ │  │  │                 │  │
-    │ └───────────┘          └─────────────────┘ │  │  └─────────────────┘  │
-    │                                            │  │                       │
-    └────────────────────────────────────────────┘  └───────────┬───────────┘
-                                                                │
-                                                                ▼
-                                                          ┌───────────┐
-                                                          │   Output  │
-                                                          └───────────┘
-
+---
 
 ## Install
 `hyper-nn` works with python 3.8+
@@ -75,143 +22,192 @@ $ python setup.py install
 
 For gpu functionality with Jax, you will need to follow the instructions [here](https://github.com/google/jax#installation)
 
-### Key Components 
+---
 
-#### EmbeddingModule
-`EmbeddingModule` outputs a matrix of size `num_embeddings x embedding_dim`, where each row contains some information about layer(s) in the target network.
+## Overview
+Hypernetworks, simply put, are neural networks that generate parameters for another neural network. They can be incredibly powerful, being able to represent large networks while using only a fraction of their parameters.
 
-<details><summary> <b>Pytorch</b> </summary>
-<p>
+`hyper-nn` represents Hypernetworks with two key components: 
+- EmbeddingModule that holds information about layers(s) in the target network, or more generally a chunk of the target networks weights
+- Weight Generator, which takes in the embedding and outputs a parameter vector for the target network
 
-[code](hypernn/torch/embedding_module.py)
+Hypernetworks generally come in two variants, static or dynamic. Static Hypernetworks have a fixed or learned embedding and weight generator that outputs the target networks’ weights deterministically. Dynamic Hypernetworks instead receive inputs and use them to generate dynamic weights.
 
+<p align="center">
+  <img width="75%" src="images/dynamic_hypernetwork.drawio.svg">
+</p>
+
+---
+## Quick Usage
+
+for detailed examples see [notebooks](notebooks/)
+- [MNIST](notebooks/mnist/)
+- [Lunar Lander Reinforce (Vanilla Policy Gradient)](notebooks/reinforce/)
+- [Dynamic Hypernetworks for name generation](notebooks/dynamic_hypernetworks/)
+
+
+The main classes to use are `TorchHyperNetwork` and `JaxHyperNetwork` and those that inherit them. Instead of constructing them directly, use the `from_target` method, shown below. After this you can use the hypernetwork exactly like any other `nn.Module`!
+
+### Pytorch
 ```python
-class TorchEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
-    def __init__(self, embedding_dim: int, num_embeddings: int):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.num_embeddings = num_embeddings
-        self.embedding = None
-        self.__device_param_dummy__ = nn.Parameter(torch.empty(0)) # to keep track of device
+import torch.nn as nn
 
-    @property
-    def device(self) -> torch.device:
-        return self.__device_param_dummy__.device
+# any module
+target_network = nn.Sequential(
+    nn.Linear(32, 64),
+    nn.ReLU(),
+    nn.Linear(64, 32)
+)
 
-    @abc.abstractmethod
-    def forward(self, inp: Optional[Any] = None, *args, **kwargs) -> torch.Tensor:
-        """
-        Generate Embedding
-        """
+# static hypernetwork
+from hypernn.torch.hypernet import TorchHyperNetwork
 
+EMBEDDING_DIM = 4
+NUM_EMBEDDINGS = 32
+
+hypernetwork = TorchHyperNetwork.from_target(
+    target_network = target_network,
+    embedding_dim = EMBEDDING_DIM,
+    num_embeddings = NUM_EMBEDDINGS
+)
+
+# now we can use the hypernetwork like any other nn.Module
+inp = torch.zeros((1, 32))
+
+# by default we only output what we'd expect from the target network
+output = hypernetwork(inp=[inp])
+
+# return aux_output
+output, generated_params, aux_output = hypernetwork(inp=[inp], has_aux=True)
+
+# generate params separately
+generated_params, aux_output = hypernetwork.generate_params(inp=[inp])
+output = hypernetwork(inp=[inp], generated_params=generated_params)
 ```
 
-</p>
-</details>
-
-<details><summary> <b>Jax</b> </summary>
-<p>
-
-[code](hypernn/jax/embedding_module.py)
-
+### Jax
 ```python
-class FlaxEmbeddingModule(nn.Module, metaclass=abc.ABCMeta):
-    embedding_dim: int
-    num_embeddings: int
+import flax.linen as nn
+import jax.numpy as jnp
+from jax import random
 
-    def setup(self):
-        pass
+# any module
+target_network = nn.Sequential(
+    [
+        nn.Dense(64),
+        nn.relu,
+        nn.Dense(32)
+    ]
+)
 
-    @abc.abstractmethod
-    def __call__(self, inp: Optional[Any] = None, *args, **kwargs) -> jnp.array:
-        """
-        Forward pass to output embeddings
-        """
+# static hypernetwork
+from hypernn.jax.hypernet import JaxHyperNetwork
 
+EMBEDDING_DIM = 4
+NUM_EMBEDDINGS = 32
+
+hypernetwork = JaxHyperNetwork.from_target(
+    target_network = target_network,
+    embedding_dim = EMBEDDING_DIM,
+    num_embeddings = NUM_EMBEDDINGS,
+    inputs=jnp.zeros((1, 32)) # jax needs this to initialize target weights
+)
+
+# now we can use the hypernetwork like any other nn.Module
+inp = jnp.zeros((1, 32)
+key = random.PRNGKey(0)
+hypernetwork_params = hypernetwork.init(key, inp=[inp)]) # flax needs to initialize hypernetwork parameters first
+
+# by default we only output what we'd expect from the target network
+output = hypernetwork.apply(hypernetwork_params, inp=[inp])
+
+# return aux_output
+output, generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp=[inp], has_aux=True)
+
+# generate params separately
+generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp=[inp], method=hypernetwork.generate_params)
+
+output = hypernetwork.apply(inp=[inp], generated_params=generated_params)
 ```
 
-</p>
-</details>
 
-#### WeightGenerator
-`WeightGenerator` takes in the embedding matrix from `EmbeddingModule` and outputs a parameter vector of size `num_target_parameters`, equal to the total number of parameters in the target network. To ensure that the output is equal to `num_target_parameters`, the `WeightGenerator` outputs a matrix of size `num_embeddings x hidden_dim`, where `hidden_dim = num_target_parameters // num_embeddings`, and then flattens it.
 
-<details><summary> <b>Pytorch</b> </summary>
-<p>
+---
 
-[code](hypernn/torch/weight_generator.py)
+## Detailed Explanation
 
+### EmbeddingModule
+
+The `EmbeddingModule` is used to store information about layers(s) in the target network, or more generally a chunk of the target networks weights. The standard representation is with a matrix of size `num_embeddings x embedding_dim`. `hyper-nn` uses torch's `nn.Embedding` and flax's `nn.Embed` classes to represent this.
+
+### WeightGenerator
+`WeightGenerator` takes in the embedding matrix from `EmbeddingModule` and outputs a parameter vector of size `num_target_parameters`, equal to the total number of parameters in the target network. To ensure that the output is equal to `num_target_parameters`, the `WeightGenerator` outputs a matrix of size `num_embeddings x weight_chunk_dim`, where `weight_chunk_dim = num_target_parameters // num_embeddings`, and then flattens it.
+
+### Hypernetwork
+
+the `Hypernetwork` by default uses a `setup` function to initialize the `embedding_module` and `weight_generator` from either user provided modules or the functions: `make_embedding_module`, `make_weight_generator`. This makes it really easy to customize and use your own modules instead of the basic versions provided. `generate_params` is used to generate the target parameters and `forward` combines the generated parameters with the target network to compute a forward pass
+
+Instead of creating the `Hypernetwork` class directly, use `from_target` instead
+
+Base class:
+[code](hypernn/base.py)
 ```python
-class TorchWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
-    def __init__(self, embedding_dim: int, hidden_dim: int):
-        super().__init__()
-        self.hidden_dim = hidden_dim
-        self.embedding_dim = embedding_dim
-        self.__device_param_dummy__ = nn.Parameter(torch.empty(0)) # to keep track of device
+class HyperNetwork(metaclass=abc.ABCMeta):
+    embedding_module = None
+    weight_generator = None
+
+    def setup(self) -> None:
+        if self.embedding_module is None:
+            self.embedding_module = self.make_embedding_module()
+
+        if self.weight_generator is None:
+            self.weight_generator = self.make_weight_generator()
 
     @abc.abstractmethod
-    def forward(
-        self, embedding: torch.Tensor, inp: Optional[Any] = None, *args, **kwargs
-    ) -> torch.Tensor:
+    def make_embedding_module(self):
         """
-        Generate Embedding
+        Makes an embedding module to be used
+
+        Returns:
+            a torch.nn.Module or flax.linen.Module that can be used to return an embedding matrix to be used to generate weights
         """
-
-    @property
-    def device(self) -> torch.device:
-        return self.__device_param_dummy__.device
-
-```
-
-</p>
-</details>
-
-<details><summary> <b>Jax</b> </summary>
-<p>
-
-[code](hypernn/jax/weight_generator.py)
-
-```python
-class FlaxWeightGenerator(nn.Module, metaclass=abc.ABCMeta):
-    embedding_dim: int
-    hidden_dim: int
 
     @abc.abstractmethod
-    def __call__(
-        self, embedding: jnp.array, inp: Optional[Any] = None, *args, **kwargs
+    def make_weight_generator(self):
+        """
+        Makes an embedding module to be used
+
+        Returns:
+            a torch.nn.Module or flax.linen.Module that can be used to return an embedding matrix to be used to generate weights
+        """
+
+    @classmethod
+    @abc.abstractmethod
+    def count_params(
+        cls,
+        target,
+        target_input_shape: Optional[Any] = None,
     ):
         """
-        Forward pass to output embeddings
+        Counts parameters of target nn.Module
+
+        Args:
+            target (Union[torch.nn.Module, flax.linen.Module]): _description_
+            target_input_shape (Optional[Any], optional): _description_. Defaults to None.
         """
 
-```
+    @classmethod
+    @abc.abstractmethod
+    def from_target(cls, target, *args, **kwargs) -> HyperNetwork:
+        """
+        creates hypernetwork from target
 
-</p>
-</details>
-
-#### HyperNetwork
-`HyperNetwork` takes in a target network, represented as a `torch.nn.Module or flax.linen.Module`, an `EmbeddingModule` and `WeightGenerator` constructor, `embedding_dim`,  and `num_embeddings`. `HyperNetwork` creates the `EmbeddingModule` and `WeightGenerator`, and uses them to generate parameters to be passed into the target network.
-
-[code](hypernn/base_hypernet.py)
-
-```python
-class BaseHyperNetwork(metaclass=abc.ABCMeta):
-    def __init__(
-        self,
-        target_network: Union[torch.nn.Module, flax.linen.Module],
-        embedding_module_constructor: Callable[
-            [int, int], Union[TorchEmbeddingModule, FlaxEmbeddingModule]
-        ],
-        weight_generator_constructor: Callable[
-            [int, int], Union[TorchWeightGenerator, FlaxWeightGenerator]
-        ],
-        embedding_dim: int,
-        num_embeddings: int,
-    ):
-        pass
+        Args:
+            cls (_type_): _description_
+        """
 
     @abc.abstractmethod
-    def generate_params(self, inp: Optional[Any] = None, *args, **kwargs) -> Any:
+    def generate_params(self, inp: Optional[Any] = None, *args, **kwargs) -> Tuple[Any, Dict[str, Any]]:
         """
         Generate a vector of parameters for target network
 
@@ -219,180 +215,26 @@ class BaseHyperNetwork(metaclass=abc.ABCMeta):
             inp (Optional[Any], optional): input, may be useful when creating dynamic hypernetworks
 
         Returns:
-            Any: vector of parameters for target network
+            Any: vector of parameters for target network and a dictionary of extra info
         """
 
     @abc.abstractmethod
     def forward(
         self,
-        inp: Any,
-        params: Optional[Union[torch.tensor, jnp.array]] = None,
-        **kwargs
+        inp: Iterable[Any] = [],
+        generated_params=None,
+        has_aux: bool = True,
+        *args,
+        **kwargs,
     ):
         """
         Computes a forward pass with generated parameters or with parameters that are passed in
 
         Args:
             inp (Any): input from system
-            params (Optional[Union[torch.tensor, jnp.array]], optional): Generated params. Defaults to None.
+            generated_params (Optional[Union[torch.tensor, jnp.array]], optional): Generated params. Defaults to None.
+            has_aux (bool): flag to indicate whether to return auxiliary info
         Returns:
-            returns output and generated parameters
+            returns output and generated params and auxiliary info if has_aux is provided
         """
-
-```
-
-
-## Usage
-### Minimal Examples
-
-<details><summary> <b>Pytorch</b> </summary>
-<p>
-
-```python
-import torch.nn as nn
-
-# target network
-target_network = nn.Sequential(
-    nn.Linear(8, 256),
-    nn.Tanh(),
-    nn.Linear(256,256),
-    nn.Tanh(),
-    nn.Linear(256, 4, bias=False)
-)
-
-from hypernn.torch.hypernet import TorchHyperNetwork
-from hypernn.torch.weight_generator import TorchWeightGenerator
-from hypernn.torch.embedding_module import TorchEmbeddingModule
-
-# embedding module
-class DefaultTorchEmbeddingModule(TorchEmbeddingModule):
-    def __init__(self, embedding_dim: int, num_embeddings: int):
-        super().__init__(embedding_dim, num_embeddings)
-        self.embedding = nn.Embedding(num_embeddings, embedding_dim)
-
-    def forward(self, *args, **kwargs):
-        indices = torch.arange(self.num_embeddings).to(self.device)
-        return self.embedding(indices)
-
-# weight generator
-class DefaultTorchWeightGenerator(TorchWeightGenerator):
-    def __init__(self, embedding_dim: int, hidden_dim: int):
-        super().__init__(embedding_dim, hidden_dim)
-        self.generator = nn.Linear(embedding_dim, hidden_dim)
-
-    def forward(self, embedding: torch.Tensor) -> torch.Tensor:
-        return self.generator(embedding).view(-1)
-
-# putting it all together
-
-hypernetwork = TorchHyperNetwork(
-                            target_network,
-                            embedding_module_constructor=DefaultTorchEmbeddingModule,
-                            weight_generator_constructor=DefaultTorchWeightGenerator,
-                            embedding_dim = 32,
-                            num_embeddings = 512
-                        )
-
-# now we can use the hypernetwork like any other nn.Module
-inp = torch.zeros((1, 8))
-output, generated_params = hypernetwork(inp)
-
-# pass in previous generated params
-output, _ = hypernetwork(inp, params=generated_params)
-
-```
-</p>
-</details>
-
-<details><summary> <b>Jax</b> </summary>
-<p>
-
-```python
-import flax.linen as nn
-
-# target network
-class MLP(nn.Module):
-
-    @nn.compact
-    def __call__(self, x):
-        x = nn.Dense(256)(x)
-        x = nn.tanh(x)
-        x = nn.Dense(256)(x)
-        x = nn.tanh(x)
-        x = nn.Dense(4, use_bias=False)(x)
-        return x
-
-from hypernn.jax.embedding_module import FlaxEmbeddingModule
-from hypernn.jax.weight_generator import FlaxWeightGenerator
-from hypernn.jax.hypernet import FlaxHyperNetwork
-
-# embedding module
-class DefaultFlaxEmbeddingModule(FlaxEmbeddingModule):
-    def setup(self):
-        self.embedding = nn.Embed(self.num_embeddings, self.embedding_dim)
-
-    def __call__(self):
-        indices = jnp.arange(0, self.num_embeddings)
-        return self.embedding(indices)
-
-# weight generator
-class DefaultFlaxWeightGenerator(FlaxWeightGenerator):
-    def setup(self):
-        self.dense1 = nn.Dense(self.hidden_dim)
-
-    def __call__(self, embedding: jnp.array):
-        return self.dense1(embedding)
-
-# putting it all together
-hypernetwork = FlaxHyperNetwork(
-                            input_shape = (1, 8),
-                            target_network = MLP(),
-                            embedding_module_constructor=DefaultFlaxEmbeddingModule,
-                            weight_generator_constructor=DefaultFlaxWeightGenerator,
-                            embedding_dim = 32,
-                            num_embeddings = 512
-    )
-
-rng = jax.random.PRNGKey(0)
-variables = hypernetwork.init(rng, jnp.ones((1,8)))
-output, generated_params = hypernetwork.apply(variables, jnp.zeros((1,8)))
-
-# pass in previous generated params
-output, _ = hypernetwork.apply(variables, jnp.zeros((1,8)), params=generated_params)
-
-```
-</p>
-</details>
-
-
-
-## Extra
-
-#### Using custom constructors with functools.partial
-
-```python
-from functools import partial
-
-class CustomStaticWeightGenerator(TorchWeightGenerator):
-    def __init__(self, embedding_dim: int, hidden_dim: int, embedding_network_hidden_dim: int):
-        super().__init__(embedding_dim, hidden_dim)
-        self.embedding_network = nn.Sequential(
-            nn.Linear(embedding_dim, embedding_network_hidden_dim),
-            nn.ReLU(),
-            nn.Linear(embedding_network_hidden_dim, hidden_dim),
-        )
-
-    def forward(self, embedding: torch.Tensor) -> torch.Tensor:
-        return self.embedding_network(embedding).view(-1)
-
-weight_generator_constructor = partial(CustomStaticWeightGenerator, embedding_network_hidden_dim=64)
-
-
-hypernetwork = TorchHyperNetwork(
-                            target_network,
-                            embedding_module_constructor=DefaultTorchEmbeddingModule,
-                            weight_generator_constructor=weight_generator_constructor,
-                            embedding_dim = 32,
-                            num_embeddings = 512
-                        )
 ```

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import field
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import flax.linen as nn
 import jax
@@ -11,110 +12,98 @@ from flax import serialization
 from jax._src.tree_util import PyTreeDef
 
 from hypernn.base import HyperNetwork
-from hypernn.jax.embedding_module import DefaultFlaxEmbeddingModule, FlaxEmbeddingModule
-from hypernn.jax.utils import count_jax_params
-from hypernn.jax.weight_generator import DefaultFlaxWeightGenerator, FlaxWeightGenerator
+from hypernn.jax.utils import count_jax_params, get_weight_chunk_dims
 
 
 def target_forward(apply_fn, param_tree, *args, **kwargs):
     return apply_fn(param_tree, *args, **kwargs)
 
 
-class FlaxHyperNetwork(nn.Module, HyperNetwork):
+def create_param_tree(generated_params, target_weight_shapes, target_treedef):
+    param_list = []
+    curr = 0
+    for shape in target_weight_shapes:
+        num_params = np.prod(shape)
+        param_list.append(generated_params[curr : curr + num_params].reshape(shape))
+        curr = curr + num_params
+
+    param_tree = jax.tree_util.tree_unflatten(target_treedef, param_list)
+    return param_tree
+
+
+class JaxHyperNetwork(nn.Module, HyperNetwork):
     target_network: nn.Module
-    target_input_shape: List[Any]
+    num_target_parameters: int
     target_treedef: PyTreeDef
-    embedding_module: Optional[
-        Union[FlaxEmbeddingModule, Type[FlaxEmbeddingModule]]
-    ] = None
-    weight_generator: Optional[
-        Union[FlaxWeightGenerator, Type[FlaxWeightGenerator]]
-    ] = None
+    target_weight_shapes: List[Any] = field(default_factory=list)
     embedding_dim: int = 100
     num_embeddings: int = 3
-    hidden_dim: Optional[int] = None
-    num_target_parameters: Optional[int] = None
-    embedding_module_kwargs: Dict[str, Any] = field(default_factory=lambda: ({}))
-    weight_generator_kwargs: Dict[str, Any] = field(default_factory=lambda: ({}))
-    target_weight_shapes: List[Any] = field(default_factory=list)
+    weight_chunk_dim: Optional[int] = None
+    custom_embedding_module: Optional[nn.Module] = None
+    custom_weight_generator: Optional[nn.Module] = None
 
     def setup(self):
-        num_target_parameters = self.num_target_parameters
-        if num_target_parameters is None:
-            num_target_parameters = self.count_params(
-                self.target_network, self.target_input_shape
-            )
+        if self.custom_embedding_module is None:
+            self.embedding_module = self.make_embedding_module()
+        else:
+            self.embedding_module = self.custom_embedding_module
 
-        embedding_module = self.embedding_module
-        if embedding_module is None:
-            embedding_module = DefaultFlaxEmbeddingModule
+        if self.custom_weight_generator is None:
+            self.weight_generator = self.make_weight_generator()
+        else:
+            self.weight_generator = self.custom_weight_generator_module
 
-        weight_generator = self.weight_generator
-        if weight_generator is None:
-            weight_generator = DefaultFlaxWeightGenerator
+    def make_embedding_module(self):
+        return nn.Embed(self.num_embeddings, self.embedding_dim)
 
-        self._embedding_module = embedding_module.from_target(
-            target=self.target_network,
-            embedding_dim=self.embedding_dim,
-            num_embeddings=self.num_embeddings,
-            num_target_parameters=num_target_parameters,
-            hidden_dim=self.hidden_dim,
-            target_input_shape=self.target_input_shape,
-            **self.embedding_module_kwargs
-        )
+    def make_weight_generator(self):
+        return nn.Dense(self.weight_chunk_dim)
 
-        self._weight_generator = weight_generator.from_target(
-            target=self.target_network,
-            embedding_dim=self.embedding_dim,
-            num_embeddings=self.num_embeddings,
-            num_target_parameters=num_target_parameters,
-            hidden_dim=self.hidden_dim,
-            target_input_shape=self.target_input_shape,
-            **self.weight_generator_kwargs
-        )
+    def assert_parameter_shapes(self, generated_params):
+        assert generated_params.shape[-1] >= self.num_target_parameters
 
-    @classmethod
-    def from_target(
-        cls,
-        target_network: nn.Module,
-        target_input_shape: Optional[List[Any]] = None,
-        embedding_module: Optional[
-            Union[FlaxEmbeddingModule, Type[FlaxEmbeddingModule]]
-        ] = None,
-        weight_generator: Optional[
-            Union[FlaxWeightGenerator, Type[FlaxWeightGenerator]]
-        ] = None,
-        embedding_dim: int = 100,
-        num_embeddings: int = 3,
-        hidden_dim: Optional[int] = None,
-        num_target_parameters: Optional[int] = None,
-        embedding_module_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
-        inputs: Optional[List[Any]] = None,
+    def generate_params(
+        self, inp: Iterable[Any] = []
+    ) -> Tuple[jnp.array, Dict[str, Any]]:
+        embedding = self.embedding_module(jnp.arange(0, self.num_embeddings))
+        generated_params = self.weight_generator(embedding).reshape(-1)
+        return generated_params, {"embedding": embedding}
+
+    def forward(
+        self,
+        inp: Iterable[Any] = [],
+        generated_params: Optional[jnp.array] = None,
+        has_aux: bool = True,
         *args,
-        **kwargs
-    ) -> FlaxHyperNetwork:
-        num_target_parameters, variables = count_jax_params(
-            target_network, target_input_shape, inputs=inputs, return_variables=True
+        **kwargs,
+    ) -> Tuple[jnp.array, List[jnp.array]]:
+        aux_output = {}
+        if generated_params is None:
+            generated_params, aux_output = self.generate_params(inp, *args, **kwargs)
+
+        self.assert_parameter_shapes(generated_params)
+
+        param_tree = create_param_tree(
+            generated_params, self.target_weight_shapes, self.target_treedef
         )
-        _value_flat, target_treedef = jax.tree_util.tree_flatten(variables)
-        target_weight_shapes = [v.shape for v in _value_flat]
-        return cls(
-            target_network=target_network,
-            target_input_shape=target_input_shape,
-            target_treedef=target_treedef,
-            embedding_module=embedding_module,
-            weight_generator=weight_generator,
-            embedding_dim=embedding_dim,
-            num_embeddings=num_embeddings,
-            hidden_dim=hidden_dim,
-            num_target_parameters=num_target_parameters,
-            target_weight_shapes=target_weight_shapes,
-            embedding_module_kwargs=embedding_module_kwargs,
-            weight_generator_kwargs=weight_generator_kwargs,
-            *args,
-            **kwargs
-        )
+
+        if has_aux:
+            return (
+                target_forward(self.target_network.apply, param_tree, *inp),
+                generated_params,
+                aux_output,
+            )
+        return target_forward(self.target_network.apply, param_tree, *inp)
+
+    def __call__(
+        self,
+        inp: Iterable[Any] = [],
+        generated_params: Optional[jnp.array] = None,
+        has_aux: bool = True,
+        *args,
+        **kwargs,
+    ) -> Tuple[jnp.array, List[jnp.array]]:
+        return self.forward(inp, generated_params, has_aux, *args, **kwargs)
 
     @classmethod
     def count_params(
@@ -122,62 +111,45 @@ class FlaxHyperNetwork(nn.Module, HyperNetwork):
         target: nn.Module,
         target_input_shape: Optional[Any] = None,
         inputs: Optional[List[Any]] = None,
+        return_variables: bool = False,
     ):
-        return count_jax_params(target, target_input_shape, inputs=inputs)
-
-    def generate_params(
-        self,
-        inp: List[Optional[Any]] = None,
-        embedding_module_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
-    ):
-        embeddings = self._embedding_module(inp, **embedding_module_kwargs)
-        generated_params = self._weight_generator(
-            embeddings, inp, **weight_generator_kwargs
-        ).reshape(-1)
-        return generated_params, embeddings
-
-    def create_param_tree(self, generated_params):
-        param_list = []
-        curr = 0
-        for shape in self.target_weight_shapes:
-            num_params = np.prod(shape)
-            param_list.append(generated_params[curr : curr + num_params].reshape(shape))
-            curr = curr + num_params
-
-        param_tree = jax.tree_util.tree_unflatten(self.target_treedef, param_list)
-        return param_tree
-
-    def forward(
-        self,
-        inp: List[Any],
-        generated_params: Optional[jnp.array] = None,
-        embedding_module_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
-    ):
-        embedding_output = None
-        if generated_params is None:
-            generated_params, embedding_output = self.generate_params(
-                inp, embedding_module_kwargs, weight_generator_kwargs
-            )
-
-        param_tree = self.create_param_tree(generated_params)
-
-        return (
-            target_forward(self.target_network.apply, param_tree, *inp),
-            generated_params,
-            embedding_output,
+        return count_jax_params(
+            target, target_input_shape, inputs=inputs, return_variables=return_variables
         )
 
-    def __call__(
-        self,
-        inp: List[Any],
-        generated_params: Optional[jnp.array] = None,
-        embedding_module_kwargs: Dict[str, Any] = {},
-        weight_generator_kwargs: Dict[str, Any] = {},
-    ) -> Tuple[jnp.array, List[jnp.array]]:
-        return self.forward(
-            inp, generated_params, embedding_module_kwargs, weight_generator_kwargs
+    @classmethod
+    def from_target(
+        cls,
+        target_network: nn.Module,
+        target_input_shape: Optional[List[Any]] = None,
+        num_target_parameters: Optional[int] = None,
+        embedding_dim: int = 100,
+        num_embeddings: int = 3,
+        weight_chunk_dim: Optional[int] = None,
+        inputs: Optional[List[Any]] = None,
+        *args,
+        **kwargs,
+    ) -> JaxHyperNetwork:
+        num_target_parameters, variables = cls.count_params(
+            target_network, target_input_shape, inputs=inputs, return_variables=True
+        )
+        _value_flat, target_treedef = jax.tree_util.tree_flatten(variables)
+        target_weight_shapes = [v.shape for v in _value_flat]
+
+        if weight_chunk_dim is None:
+            weight_chunk_dim = get_weight_chunk_dims(
+                num_target_parameters, num_embeddings
+            )
+        return cls(
+            target_network=target_network,
+            num_target_parameters=num_target_parameters,
+            target_treedef=target_treedef,
+            target_weight_shapes=target_weight_shapes,
+            embedding_dim=embedding_dim,
+            num_embeddings=num_embeddings,
+            weight_chunk_dim=weight_chunk_dim,
+            *args,
+            **kwargs,
         )
 
     def save(self, params, path: str):
