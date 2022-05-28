@@ -53,15 +53,10 @@ from typing import Any, Dict, Iterable, Optional, Tuple
 
 
 class HyperNetwork(metaclass=abc.ABCMeta):
-    embedding_module = None
-    weight_generator = None
 
     def setup(self) -> None:
-        if self.embedding_module is None:
-            self.embedding_module = self.make_embedding_module()
-
-        if self.weight_generator is None:
-            self.weight_generator = self.make_weight_generator()
+        self.embedding_module = self.make_embedding_module()
+        self.weight_generator = self.make_weight_generator()
 
     @abc.abstractmethod
     def make_embedding_module(self):

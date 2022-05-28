@@ -39,20 +39,24 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
         self.weight_chunk_dim = weight_chunk_dim
-        self.embedding_module = custom_embedding_module
-        self.weight_generator = custom_weight_generator
+        self.custom_embedding_module = custom_embedding_module
+        self.custom_weight_generator = custom_weight_generator
         self.setup()
 
         self.__device_param_dummy__ = nn.Parameter(
             torch.empty(0)
         )  # to keep track of device
 
-    def setup(self) -> None:
-        if self.embedding_module is None:
+    def setup(self):
+        if self.custom_embedding_module is None:
             self.embedding_module = self.make_embedding_module()
+        else:
+            self.embedding_module = self.custom_embedding_module
 
-        if self.weight_generator is None:
+        if self.custom_weight_generator is None:
             self.weight_generator = self.make_weight_generator()
+        else:
+            self.weight_generator = self.custom_weight_generator_module
 
     def make_embedding_module(self) -> nn.Module:
         return nn.Embedding(self.num_embeddings, self.embedding_dim)

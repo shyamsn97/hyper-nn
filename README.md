@@ -129,9 +129,6 @@ generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp=[inp]
 
 output = hypernetwork.apply(inp=[inp], generated_params=generated_params)
 ```
-
-
-
 ---
 
 ## Detailed Explanation
