@@ -53,7 +53,6 @@ from typing import Any, Dict, Iterable, Optional, Tuple
 
 
 class HyperNetwork(metaclass=abc.ABCMeta):
-
     def setup(self) -> None:
         self.embedding_module = self.make_embedding_module()
         self.weight_generator = self.make_weight_generator()

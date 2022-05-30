@@ -34,6 +34,8 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         super().__init__()
 
         self._target = create_functional_target_network(copy.deepcopy(target_network))
+        self.target_weight_shapes = self._target.target_weight_shapes
+
         self.num_target_parameters = num_target_parameters
 
         self.embedding_dim = embedding_dim

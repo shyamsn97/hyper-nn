@@ -28,6 +28,9 @@ class FunctionalParamVectorWrapper(nn.Module):
     def __init__(self, module: nn.Module):
         super(FunctionalParamVectorWrapper, self).__init__()
         self.custom_buffers = None
+        param_dict = dict(module.named_parameters())
+        self.target_weight_shapes = {k: param_dict[k].size() for k in param_dict}
+
         try:
             _functional, self.named_params = make_functional(module)
         except Exception:

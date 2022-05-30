@@ -34,7 +34,6 @@ setup(
         'functorch',
         'flax',
         'jax',
-        'einops',
     ],
 
     classifiers=[

@@ -54,7 +54,11 @@ class JaxHyperNetwork(nn.Module, HyperNetwork):
             self.weight_generator = self.custom_weight_generator_module
 
     def make_embedding_module(self):
-        return nn.Embed(self.num_embeddings, self.embedding_dim)
+        return nn.Embed(
+            self.num_embeddings,
+            self.embedding_dim,
+            embedding_init=jax.nn.initializers.uniform(),
+        )
 
     def make_weight_generator(self):
         return nn.Dense(self.weight_chunk_dim)
