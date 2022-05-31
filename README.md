@@ -1,4 +1,4 @@
-# hyper-nn (Easy Hypernetworks in Pytorch and Jax (using Flax))
+# hyper-nn -- Easy Hypernetworks in Pytorch and Flax
 **Note: This library is experimental and currently under development - the flax implementations in particular are far from perfect and can be improved. If you have any suggestions on how to improve this library, please open a github issue or feel free to reach out directly!**
 
 `hyper-nn` gives users with the ability to create easily customizable [Hypernetworks](https://arxiv.org/abs/1609.09106) for almost any generic `torch.nn.Module` from [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) and `flax.linen.Module` from [Flax](https://flax.readthedocs.io/en/latest/flax.linen.html). Our Hypernetwork objects are also `torch.nn.Modules` and `flax.linen.Modules`, allowing for easy integration with existing systems
@@ -6,8 +6,8 @@
 <p align="center">Generating Policy Weights for Lunar Lander</p>
 
 <p float="left">
-  <img width="54%" src="images/torch_lunar_lander.gif">
-  <img width="45%" src="images/LunarLanderWeights.png">
+  <img width="54%" src="https://raw.githubusercontent.com/shyamsn97/hyper-nn/main/images/torch_lunar_lander.gif">
+  <img width="45%" src="https://raw.githubusercontent.com/shyamsn97/hyper-nn/main/images/LunarLanderWeights.png">
 </p>
 
 <br></br>
@@ -15,7 +15,7 @@
 <p align="center">Dynamic Weights for each character in a name generator</p>
 
 <p float="center" align="center">
-  <img width="100%" src="images/DynamicWeights.png">
+  <img width="100%" src="https://raw.githubusercontent.com/shyamsn97/hyper-nn/main/images/DynamicWeights.png">
 </p>
 
 ---
@@ -50,7 +50,7 @@ Hypernetworks, simply put, are neural networks that generate parameters for anot
 Hypernetworks generally come in two variants, static or dynamic. Static Hypernetworks have a fixed or learned embedding and weight generator that outputs the target networks’ weights deterministically. Dynamic Hypernetworks instead receive inputs and use them to generate dynamic weights.
 
 <p align="center">
-  <img width="75%" src="images/dynamic_hypernetwork.drawio.svg">
+  <img width="75%" src="https://raw.githubusercontent.com/shyamsn97/hyper-nn/main/images/dynamic_hypernetwork.drawio.svg">
 </p>
 
 ---
