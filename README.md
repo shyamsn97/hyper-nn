@@ -3,8 +3,7 @@
 
 `hyper-nn` gives users with the ability to create easily customizable [Hypernetworks](https://arxiv.org/abs/1609.09106) for almost any generic `torch.nn.Module` from [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) and `flax.linen.Module` from [Flax](https://flax.readthedocs.io/en/latest/flax.linen.html). Our Hypernetwork objects are also `torch.nn.Modules` and `flax.linen.Modules`, allowing for easy integration with existing systems
 
-<p style="text-align: center;">Generating Policy Weights for Lunar Lander</p>
-<br></br>
+<p align="center">Generating Policy Weights for Lunar Lander</p>
 
 <p float="left">
   <img width="54%" src="images/torch_lunar_lander.gif">
@@ -13,8 +12,7 @@
 
 <br></br>
 
-<p style="text-align: center;">Dynamic Weights for each character in a name generator</p>
-<br></br>
+<p align="center">Dynamic Weights for each character in a name generator</p>
 
 <p float="center" align="center">
   <img width="100%" src="images/DynamicWeights.png">
