@@ -22,7 +22,7 @@
 
 
 ## Install
-`hyper-nn` works with python 3.8+
+`hyper-nn` tested on python 3.8+
 
 #### Installing with pip
 ```bash

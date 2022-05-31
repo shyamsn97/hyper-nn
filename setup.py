@@ -21,7 +21,7 @@ setup(
     author="Shyam Sudhakaran",
     author_email="shyamsnair@protonmail.com",
 
-    description="Easy hypernetworks in Jax and Pytorch",
+    description="Easy hypernetworks in Pytorch and Flax",
 
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -39,6 +39,7 @@ setup(
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
 )
