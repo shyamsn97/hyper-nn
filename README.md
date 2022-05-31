@@ -4,7 +4,7 @@
 
 **Note: This library is experimental and currently under development - the flax implementations in particular are far from perfect and can be improved. If you have any suggestions on how to improve this library, please open a github issue or feel free to reach out directly!**
 
-`hyper-nn` gives users with the ability to create easily customizable [Hypernetworks](https://arxiv.org/abs/1609.09106) for almost any generic `torch.nn.Module` from [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) and `flax.linen.Module` from [Flax](https://flax.readthedocs.io/en/latest/flax.linen.html). Our Hypernetwork objects are also `torch.nn.Modules` and `flax.linen.Modules`, allowing for easy integration with existing systems
+`hyper-nn` gives users with the ability to create easily customizable [Hypernetworks](https://arxiv.org/abs/1609.09106) for almost any generic `torch.nn.Module` from [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) and `flax.linen.Module` from [Flax](https://flax.readthedocs.io/en/latest/flax.linen.html). Our Hypernetwork objects are also `torch.nn.Modules` and `flax.linen.Modules`, allowing for easy integration with existing systems. For Pytorch, we make use of the amazing library [`functorch`](https://github.com/pytorch/functorch)
 
 <p align="center">Generating Policy Weights for Lunar Lander</p>
 
@@ -68,15 +68,15 @@ The main classes to use are `TorchHyperNetwork` and `JaxHyperNetwork` and those 
 ```python
 import torch.nn as nn
 
+# static hypernetwork
+from hypernn.torch.hypernet import TorchHyperNetwork
+
 # any module
 target_network = nn.Sequential(
     nn.Linear(32, 64),
     nn.ReLU(),
     nn.Linear(64, 32)
 )
-
-# static hypernetwork
-from hypernn.torch.hypernet import TorchHyperNetwork
 
 EMBEDDING_DIM = 4
 NUM_EMBEDDINGS = 32
@@ -107,6 +107,9 @@ import flax.linen as nn
 import jax.numpy as jnp
 from jax import random
 
+# static hypernetwork
+from hypernn.jax.dynamic_hypernet import JaxHyperNetwork
+
 # any module
 target_network = nn.Sequential(
     [
@@ -115,9 +118,6 @@ target_network = nn.Sequential(
         nn.Dense(32)
     ]
 )
-
-# static hypernetwork
-from hypernn.jax.hypernet import JaxHyperNetwork
 
 EMBEDDING_DIM = 4
 NUM_EMBEDDINGS = 32
@@ -130,9 +130,9 @@ hypernetwork = JaxHyperNetwork.from_target(
 )
 
 # now we can use the hypernetwork like any other nn.Module
-inp = jnp.zeros((1, 32)
+inp = jnp.zeros((1, 32))
 key = random.PRNGKey(0)
-hypernetwork_params = hypernetwork.init(key, inp=[inp)]) # flax needs to initialize hypernetwork parameters first
+hypernetwork_params = hypernetwork.init(key, inp=[inp]) # flax needs to initialize hypernetwork parameters first
 
 # by default we only output what we'd expect from the target network
 output = hypernetwork.apply(hypernetwork_params, inp=[inp])
@@ -143,9 +143,54 @@ output, generated_params, aux_output = hypernetwork.apply(hypernetwork_params, i
 # generate params separately
 generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp=[inp], method=hypernetwork.generate_params)
 
-output = hypernetwork.apply(inp=[inp], generated_params=generated_params)
+output = hypernetwork.apply(hypernetwork_params, inp=[inp], generated_params=generated_params)
 ```
 ---
+
+## Advanced: Using vmap for batching operations
+This is useful when dealing with dynamic hypernetworks that generate different params depending on inputs.
+
+### Pytorch
+```python
+import torch.nn as nn
+from functorch import vmap
+
+# dynamic hypernetwork
+from hypernn.torch.dynamic_hypernet import TorchDynamicHyperNetwork
+
+# any module
+target_network = nn.Sequential(
+    nn.Linear(8, 256),
+    nn.ReLU(),
+    nn.Linear(256, 32)
+)
+
+EMBEDDING_DIM = 4
+NUM_EMBEDDINGS = 32
+
+# conditioned on input to generate param vector
+hypernetwork = TorchDynamicHyperNetwork.from_target(
+    target_network = target_network,
+    embedding_dim = EMBEDDING_DIM,
+    num_embeddings = NUM_EMBEDDINGS,
+    input_dim = 8
+)
+
+# batch of 10 inputs
+inp = torch.randn((10, 1, 8))
+
+# use with a for loop
+outputs = []
+for i in range(10):
+    outputs.append(hypernetwork(inp=[inp[i]]))
+outputs = torch.stack(outputs)
+assert outputs.size() == (10, 1, 32)
+
+# using vmap
+outputs = vmap(hypernetwork)([inp])
+assert outputs.size() == (10, 1, 32)
+```
+
 
 ## Detailed Explanation
 
@@ -253,11 +298,11 @@ class HyperNetwork(metaclass=abc.ABCMeta):
 ```
 
 ---
-### Citation
+## Citing hyper-nn
 
 If you use this software in your academic work please cite
 
-``` 
+```bibtex
 @misc{sudhakaran2022,
   author = {Sudhakaran, Shyam Sudhakaran},
   title = {hyper-nn},
@@ -265,5 +310,16 @@ If you use this software in your academic work please cite
   publisher = {GitHub},
   journal = {GitHub repository},
   howpublished = {\url{https://github.com/shyamsn97/hyper-nn}}
+}
+```
+---
+
+### Projects used in hyper-nn
+```bibtex
+@Misc{functorch2021,
+  author =       {Horace He, Richard Zou},
+  title =        {functorch: JAX-like composable function transforms for PyTorch},
+  howpublished = {\url{https://github.com/pytorch/functorch}},
+  year =         {2021}
 }
 ```

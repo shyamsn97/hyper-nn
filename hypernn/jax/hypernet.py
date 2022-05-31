@@ -77,7 +77,7 @@ class JaxHyperNetwork(nn.Module, HyperNetwork):
         self,
         inp: Iterable[Any] = [],
         generated_params: Optional[jnp.array] = None,
-        has_aux: bool = True,
+        has_aux: bool = False,
         *args,
         **kwargs,
     ) -> Tuple[jnp.array, List[jnp.array]]:
@@ -103,7 +103,7 @@ class JaxHyperNetwork(nn.Module, HyperNetwork):
         self,
         inp: Iterable[Any] = [],
         generated_params: Optional[jnp.array] = None,
-        has_aux: bool = True,
+        has_aux: bool = False,
         *args,
         **kwargs,
     ) -> Tuple[jnp.array, List[jnp.array]]:
