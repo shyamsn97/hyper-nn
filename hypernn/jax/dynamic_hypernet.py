@@ -1,6 +1,7 @@
 from typing import Any, Dict, Iterable, Optional, Tuple
 
 import flax.linen as nn
+import jax
 import jax.numpy as jnp
 
 from hypernn.jax.hypernet import JaxHyperNetwork
@@ -22,7 +23,11 @@ class JaxDynamicEmbeddingModule(nn.Module):
     num_embeddings: int
 
     def setup(self):
-        self.embedding = nn.Embed(self.num_embeddings, self.embedding_dim)
+        self.embedding = nn.Embed(
+            self.num_embeddings,
+            self.embedding_dim,
+            embedding_init=jax.nn.initializers.uniform(),
+        )
         self.rnn = RNNCell(self.num_embeddings)
 
     def init_hidden(self):
