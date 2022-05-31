@@ -251,3 +251,19 @@ class HyperNetwork(metaclass=abc.ABCMeta):
             returns output and generated params and auxiliary info if has_aux is provided
         """
 ```
+
+---
+### Citation
+
+If you use this software in your academic work please cite
+
+``` 
+@misc{sudhakaran2022,
+  author = {Sudhakaran, Shyam Sudhakaran},
+  title = {hyper-nn},
+  year = {2022},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/shyamsn97/hyper-nn}}
+}
+```
