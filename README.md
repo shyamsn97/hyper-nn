@@ -37,10 +37,7 @@ $ python setup.py install
 ```
 
 For gpu functionality with Jax, you will need to follow the instructions [here](https://github.com/google/jax#installation)
-
----
-
-## Overview
+palm2020
 Hypernetworks, simply put, are neural networks that generate parameters for another neural network. They can be incredibly powerful, being able to represent large networks while using only a fraction of their parameters.
 
 `hyper-nn` represents Hypernetworks with two key components: 
