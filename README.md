@@ -3,7 +3,13 @@
 
 `hyper-nn` gives users with the ability to create easily customizable [Hypernetworks](https://arxiv.org/abs/1609.09106) for almost any generic `torch.nn.Module` from [Pytorch](https://pytorch.org/docs/stable/generated/torch.nn.Module.html) and `flax.linen.Module` from [Flax](https://flax.readthedocs.io/en/latest/flax.linen.html). Our Hypernetwork objects are also `torch.nn.Modules` and `flax.linen.Modules`, allowing for easy integration with existing systems
 
+<p float="left">
+  <img width="48%" src="images/torch_lunar_lander.gif">
+  <img width="48%" src="images/LunarLanderWeights.png">
+</p>
+
 ---
+
 
 ## Install
 `hyper-nn` works with python 3.8+
