@@ -201,7 +201,7 @@ hypernetwork = TorchHyperNetwork.from_target(
 )
 inp = torch.zeros((1, 32))
 
-noise = torch.randn((self.num_target_parameters,))
+noise = torch.randn((hypernetwork.num_target_parameters,))
 
 out = hypernetwork(inp=[inp], noise=noise)
 ```
