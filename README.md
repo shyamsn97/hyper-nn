@@ -145,7 +145,70 @@ generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp=[inp]
 
 output = hypernetwork.apply(hypernetwork_params, inp=[inp], generated_params=generated_params)
 ```
+## Custom Hypernetwork
+The main components to modify are the `embedding_module` and the `weight_generator`, controlled by `make_embedding_module`, `make_weight_generator` and `generate_params`. This allows for complete control over how the hypernetwork generates parameters
+
+For example, here we have a hypernetwork that adds a user inputted noise vector to the generated params
+
+```python
+from typing import Optional, Iterable
+import torch
+import torch.nn as nn
+# static hypernetwork
+from hypernn.torch.hypernet import TorchHyperNetwork
+
+class CustomHypernetwork(TorchHyperNetwork):
+    def __init__(
+        self,
+        target_network: nn.Module,
+        num_target_parameters: Optional[int] = None,
+        embedding_dim: int = 100,
+        num_embeddings: int = 3,
+        weight_chunk_dim: Optional[int] = None,
+    ):
+        super().__init__(
+                    target_network = target_network,
+                    num_target_parameters = num_target_parameters,
+                    embedding_dim = embedding_dim,
+                    num_embeddings = num_embeddings,
+                    weight_chunk_dim = weight_chunk_dim,
+                )
+
+    def generate_params(
+        self, inp: Iterable[Any] = [], noise: torch.Tensor
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        embedding = self.embedding_module(
+            torch.arange(self.num_embeddings, device=self.device)
+        )
+        generated_params = self.weight_generator(embedding).view(-1) + noise
+        return generated_params, {"embedding": embedding}
+
+
+# usage
+target_network = nn.Sequential(
+    nn.Linear(32, 64),
+    nn.ReLU(),
+    nn.Linear(64, 32)
+)
+
+EMBEDDING_DIM = 4
+NUM_EMBEDDINGS = 32
+
+hypernetwork = TorchHyperNetwork.from_target(
+    target_network = target_network,
+    embedding_dim = EMBEDDING_DIM,
+    num_embeddings = NUM_EMBEDDINGS
+)
+inp = torch.zeros((1, 32))
+
+noise = torch.randn((self.num_target_parameters,))
+
+out = hypernetwork(inp=[inp], noise=noise)
+```
+
 ---
+
+
 
 ## Advanced: Using vmap for batching operations
 This is useful when dealing with dynamic hypernetworks that generate different params depending on inputs.
@@ -190,7 +253,6 @@ assert outputs.size() == (10, 1, 32)
 outputs = vmap(hypernetwork)([inp])
 assert outputs.size() == (10, 1, 32)
 ```
-
 
 ## Detailed Explanation
 
