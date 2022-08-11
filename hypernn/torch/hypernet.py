@@ -60,14 +60,14 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         else:
             self.weight_generator = self.custom_weight_generator_module
 
+    def assert_parameter_shapes(self, generated_params):
+        assert generated_params.shape[-1] >= self.num_target_parameters
+
     def make_embedding_module(self) -> nn.Module:
         return nn.Embedding(self.num_embeddings, self.embedding_dim)
 
     def make_weight_generator(self) -> nn.Module:
         return nn.Linear(self.embedding_dim, self.weight_chunk_dim)
-
-    def assert_parameter_shapes(self, generated_params):
-        assert generated_params.shape[-1] >= self.num_target_parameters
 
     def generate_params(
         self, inp: Iterable[Any] = []
@@ -83,14 +83,28 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         inp: Iterable[Any] = [],
         generated_params: Optional[torch.Tensor] = None,
         has_aux: bool = False,
+        assert_parameter_shapes: bool = True,
         *args,
         **kwargs,
     ):
+        """
+        Main method for creating / using generated parameters and passing in input into the target network
+
+        Args:
+            inp (Iterable[Any], optional): List of inputs to be passing into the target network. Defaults to [].
+            generated_params (Optional[torch.Tensor], optional): Generated parameters of the target network. If not provided, the hypernetwork will generate the parameters. Defaults to None.
+            has_aux (bool, optional): If True, return the auxiliary output from generate_params method. Defaults to False.
+            assert_parameter_shapes (bool, optional): If True, raise an error if generated_params does not have shape (num_target_parameters,). Defaults to True.
+
+        Returns:
+            output (torch.Tensor) | (torch.Tensor, Dict[str, torch.Tensor]): returns output from target network and optionally auxiliary output.
+        """
         aux_output = {}
         if generated_params is None:
             generated_params, aux_output = self.generate_params(inp, *args, **kwargs)
 
-        self.assert_parameter_shapes(generated_params)
+        if assert_parameter_shapes:
+            self.assert_parameter_shapes(generated_params)
 
         if has_aux:
             return self._target(generated_params, *inp), generated_params, aux_output
