@@ -434,30 +434,30 @@ assert outputs.size() == (10, 1, 32)
 outputs = vmap(hypernetwork)([inp])
 assert outputs.size() == (10, 1, 32)
 ```
+## Future Plans
+Here's a list of some stuff that will hopefully be added to the library. If anyone has other suggestions, please reach out / create an issue!
+
+- [x] MNIST example
+- [x] Lunar Lander Example
+- [x] Dynamic Hypernetwork Example
+- [ ] Dedicated documentation website
+- [ ] Efficient batching for DynamicJaxHypernetwork
+- [ ] Implementation of [HyperTransformer](https://arxiv.org/abs/2201.04182)
+- [ ] Implementation of [Recomposing the Reinforcement Learning Building Blocks with Hypernetworks](https://arxiv.org/abs/2106.06842)
+- [ ] Implementation of [Goal-Conditioned Generators of Deep Policies
+](https://arxiv.org/abs/2207.01570)
+
 
 ---
 ## Citing hyper-nn
 
-If you use this software in your academic work please cite
+If you use this software in your publications, please cite it by using the following BibTeX entry.
 
 ```bibtex
 @misc{sudhakaran2022,
   author = {Sudhakaran, Shyam Sudhakaran},
   title = {hyper-nn},
+  howpublished = {\url{https://github.com/shyamsn97/hyper-nn}},
   year = {2022},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/shyamsn97/hyper-nn}}
-}
-```
----
-
-### Projects used in hyper-nn
-```bibtex
-@Misc{functorch2021,
-  author =       {Horace He, Richard Zou},
-  title =        {functorch: JAX-like composable function transforms for PyTorch},
-  howpublished = {\url{https://github.com/pytorch/functorch}},
-  year =         {2021}
 }
 ```
