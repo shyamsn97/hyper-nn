@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import flax.linen as nn
 import jax
@@ -60,47 +60,3 @@ class JaxDynamicHyperNetwork(JaxHyperNetwork):
         )
         generated_params = self.weight_generator(embedding).reshape(-1)
         return generated_params, {"embedding": embedding, "hidden_state": hidden_state}
-
-    def forward(
-        self,
-        *args,
-        generated_params: Optional[jnp.array] = None,
-        has_aux: bool = False,
-        assert_parameter_shapes: bool = True,
-        hidden_state: Optional[jnp.array] = None,
-        **kwargs,
-    ) -> Tuple[jnp.array, List[jnp.array]]:
-        """
-        Main method for creating / using generated parameters and passing in input into the target network
-
-        Args:
-            generated_params (Optional[jnp.array], optional): Generated parameters of the target network. If not provided, the hypernetwork will generate the parameters. Defaults to None.
-            has_aux (bool, optional): If True, return the auxiliary output from generate_params method. Defaults to False.
-            assert_parameter_shapes (bool, optional): If True, raise an error if generated_params does not have shape (num_target_parameters,). Defaults to True.
-
-        Returns:
-            output (torch.Tensor) | (jnp.array, Dict[str, jnp.array]): returns output from target network and optionally auxiliary output.
-        """
-        aux_output = {}
-        if generated_params is None:
-            generated_params, aux_output = self.generate_params(
-                *args, **kwargs, hidden_state=hidden_state
-            )
-
-        if has_aux:
-            return (
-                self.target_forward(
-                    *args,
-                    generated_params=generated_params,
-                    assert_parameter_shapes=assert_parameter_shapes,
-                    **kwargs,
-                ),
-                generated_params,
-                aux_output,
-            )
-        return self.target_forward(
-            *args,
-            generated_params=generated_params,
-            assert_parameter_shapes=assert_parameter_shapes,
-            **kwargs,
-        )

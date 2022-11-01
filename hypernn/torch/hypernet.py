@@ -95,6 +95,7 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         generated_params: Optional[torch.Tensor] = None,
         has_aux: bool = False,
         assert_parameter_shapes: bool = True,
+        generate_params_kwargs: Dict[str, Any] = {},
         **kwargs,
     ):
         """
@@ -104,13 +105,16 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
             generated_params (Optional[torch.Tensor], optional): Generated parameters of the target network. If not provided, the hypernetwork will generate the parameters. Defaults to None.
             has_aux (bool, optional): If True, return the auxiliary output from generate_params method. Defaults to False.
             assert_parameter_shapes (bool, optional): If True, raise an error if generated_params does not have shape (num_target_parameters,). Defaults to True.
+            generate_params_kwargs (Dict[str, Any], optional): kwargs to be passed to generate_params method
             *args, *kwargs, arguments to be passed into the target network (also gets passed into generate_params)
         Returns:
             output (torch.Tensor) | (torch.Tensor, Dict[str, torch.Tensor]): returns output from target network and optionally auxiliary output.
         """
         aux_output = {}
         if generated_params is None:
-            generated_params, aux_output = self.generate_params(*args, **kwargs)
+            generated_params, aux_output = self.generate_params(
+                *args, **kwargs, **generate_params_kwargs
+            )
 
         if has_aux:
             return (
