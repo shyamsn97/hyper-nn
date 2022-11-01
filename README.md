@@ -72,44 +72,69 @@ The `forward` method takes in a list of inputs and uses the generated parameters
   def make_weight_generator(self) -> nn.Module:
       return nn.Linear(self.embedding_dim, self.weight_chunk_dim)
 
-  def generate_params(
-      self, inp: Iterable[Any] = []
-  ) -> Tuple[jnp.array, Dict[str, Any]]:
-      embedding = self.embedding_module(jnp.arange(0, self.num_embeddings))
-      generated_params = self.weight_generator(embedding).reshape(-1)
+  def generate_params(self, *args, **kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
+      embedding = self.embedding_module(
+          torch.arange(self.num_embeddings, device=self.device)
+      )
+      generated_params = self.weight_generator(embedding).view(-1)
       return generated_params, {"embedding": embedding}
+
+  def target_forward(
+      self,
+      *args,
+      generated_params: torch.Tensor,
+      assert_parameter_shapes: bool = True,
+      **kwargs,
+  ) -> torch.Tensor:
+      if assert_parameter_shapes:
+          self.assert_parameter_shapes(generated_params)
+
+      return self.target_network(generated_params, *args, **kwargs)
 
   def forward(
       self,
-      inp: Iterable[Any] = [],
+      *args,
       generated_params: Optional[torch.Tensor] = None,
       has_aux: bool = False,
       assert_parameter_shapes: bool = True,
-      *args,
+      generate_params_kwargs: Dict[str, Any] = {},
       **kwargs,
   ):
       """
       Main method for creating / using generated parameters and passing in input into the target network
 
       Args:
-          inp (Iterable[Any], optional): List of inputs to be passing into the target network. Defaults to [].
           generated_params (Optional[torch.Tensor], optional): Generated parameters of the target network. If not provided, the hypernetwork will generate the parameters. Defaults to None.
           has_aux (bool, optional): If True, return the auxiliary output from generate_params method. Defaults to False.
           assert_parameter_shapes (bool, optional): If True, raise an error if generated_params does not have shape (num_target_parameters,). Defaults to True.
-
+          generate_params_kwargs (Dict[str, Any], optional): kwargs to be passed to generate_params method
+          *args, *kwargs, arguments to be passed into the target network (also gets passed into generate_params)
       Returns:
           output (torch.Tensor) | (torch.Tensor, Dict[str, torch.Tensor]): returns output from target network and optionally auxiliary output.
       """
       aux_output = {}
       if generated_params is None:
-          generated_params, aux_output = self.generate_params(inp, *args, **kwargs)
-
-      if assert_parameter_shapes:
-          self.assert_parameter_shapes(generated_params)
+          generated_params, aux_output = self.generate_params(
+              *args, **kwargs, **generate_params_kwargs
+          )
 
       if has_aux:
-          return self._target(generated_params, *inp), generated_params, aux_output
-      return self._target(generated_params, *inp)
+          return (
+              self.target_forward(
+                  *args,
+                  generated_params=generated_params,
+                  assert_parameter_shapes=assert_parameter_shapes,
+                  **kwargs,
+              ),
+              generated_params,
+              aux_output,
+          )
+      return self.target_forward(
+          *args,
+          generated_params=generated_params,
+          assert_parameter_shapes=assert_parameter_shapes,
+          **kwargs,
+      )
 
 ...
 ```
@@ -126,39 +151,18 @@ The `forward` method takes in a list of inputs and uses the generated parameters
   def make_weight_generator(self):
       return nn.Dense(self.weight_chunk_dim)
 
-  def generate_params(
-      self, inp: Iterable[Any] = []
-  ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-      embedding = self.embedding_module(
-          torch.arange(self.num_embeddings, device=self.device)
-      )
-      generated_params = self.weight_generator(embedding).view(-1)
+  def generate_params(self, *args, **kwargs) -> Tuple[jnp.array, Dict[str, Any]]:
+      embedding = self.embedding_module(jnp.arange(0, self.num_embeddings))
+      generated_params = self.weight_generator(embedding).reshape(-1)
       return generated_params, {"embedding": embedding}
 
-  def forward(
+  def target_forward(
       self,
-      inp: Iterable[Any] = [],
-      generated_params: Optional[jnp.array] = None,
-      has_aux: bool = False,
-      assert_parameter_shapes: bool = True,
       *args,
+      generated_params: jnp.array,
+      assert_parameter_shapes: bool = True,
       **kwargs,
-  ) -> Tuple[jnp.array, List[jnp.array]]:
-      """
-      Main method for creating / using generated parameters and passing in input into the target network
-
-      Args:
-          inp (Iterable[Any], optional): List of inputs to be passing into the target network. Defaults to [].
-          generated_params (Optional[jnp.array], optional): Generated parameters of the target network. If not provided, the hypernetwork will generate the parameters. Defaults to None.
-          has_aux (bool, optional): If True, return the auxiliary output from generate_params method. Defaults to False.
-          assert_parameter_shapes (bool, optional): If True, raise an error if generated_params does not have shape (num_target_parameters,). Defaults to True.
-
-      Returns:
-          output (torch.Tensor) | (jnp.array, Dict[str, jnp.array]): returns output from target network and optionally auxiliary output.
-      """
-      aux_output = {}
-      if generated_params is None:
-          generated_params, aux_output = self.generate_params(inp, *args, **kwargs)
+  ) -> jnp.array:
 
       if assert_parameter_shapes:
           self.assert_parameter_shapes(generated_params)
@@ -167,13 +171,52 @@ The `forward` method takes in a list of inputs and uses the generated parameters
           generated_params, self.target_weight_shapes, self.target_treedef
       )
 
+      return self.target_network.apply(param_tree, *args, **kwargs)
+
+  def forward(
+      self,
+      *args,
+      generated_params: Optional[jnp.array] = None,
+      has_aux: bool = False,
+      assert_parameter_shapes: bool = True,
+      generate_params_kwargs: Dict[str, Any] = {},
+      **kwargs,
+  ) -> Tuple[jnp.array, List[jnp.array]]:
+      """
+      Main method for creating / using generated parameters and passing in input into the target network
+
+      Args:
+          generated_params (Optional[jnp.array], optional): Generated parameters of the target network. If not provided, the hypernetwork will generate the parameters. Defaults to None.
+          has_aux (bool, optional): If True, return the auxiliary output from generate_params method. Defaults to False.
+          assert_parameter_shapes (bool, optional): If True, raise an error if generated_params does not have shape (num_target_parameters,). Defaults to True.
+          generate_params_kwargs (Dict[str, Any], optional): kwargs to be passed to generate_params method
+
+      Returns:
+          output (torch.Tensor) | (jnp.array, Dict[str, jnp.array]): returns output from target network and optionally auxiliary output.
+      """
+      aux_output = {}
+      if generated_params is None:
+          generated_params, aux_output = self.generate_params(
+              *args, **kwargs, **generate_params_kwargs
+          )
+
       if has_aux:
           return (
-              target_forward(self.target_network.apply, param_tree, *inp),
+              self.target_forward(
+                  *args,
+                  generated_params=generated_params,
+                  assert_parameter_shapes=assert_parameter_shapes,
+                  **kwargs,
+              ),
               generated_params,
               aux_output,
           )
-      return target_forward(self.target_network.apply, param_tree, *inp)
+      return self.target_forward(
+          *args,
+          generated_params=generated_params,
+          assert_parameter_shapes=assert_parameter_shapes,
+          **kwargs,
+      )
 
 ...
 ```
@@ -221,14 +264,14 @@ hypernetwork = TorchHyperNetwork.from_target(
 inp = torch.zeros((1, 32))
 
 # by default we only output what we'd expect from the target network
-output = hypernetwork(inp=[inp])
+output = hypernetwork(inp)
 
 # return aux_output
-output, generated_params, aux_output = hypernetwork(inp=[inp], has_aux=True)
+output, generated_params, aux_output = hypernetwork(inp, has_aux=True)
 
 # generate params separately
-generated_params, aux_output = hypernetwork.generate_params(inp=[inp])
-output = hypernetwork(inp=[inp], generated_params=generated_params)
+generated_params, aux_output = hypernetwork.generate_params()
+output = hypernetwork(inp, generated_params=generated_params)
 
 
 ### Dynamic Hypernetwork
@@ -240,8 +283,10 @@ dynamic_hypernetwork = TorchDynamicHyperNetwork.from_target(
     num_embeddings = NUM_EMBEDDINGS
 )
 
+output = dynamic_hypernetwork(inp)
+
 # by default we only output what we'd expect from the target network
-output = dynamic_hypernetwork(inp=[inp])
+output = dynamic_hypernetwork(inp, generate_params_kwargs=dict(hidden_state=torch.zeros((1,32))))
 
 ```
 
@@ -276,18 +321,18 @@ hypernetwork = JaxHyperNetwork.from_target(
 # now we can use the hypernetwork like any other nn.Module
 inp = jnp.zeros((1, 32))
 key = random.PRNGKey(0)
-hypernetwork_params = hypernetwork.init(key, inp=[inp]) # flax needs to initialize hypernetwork parameters first
+hypernetwork_params = hypernetwork.init(key, inp) # flax needs to initialize hypernetwork parameters first
 
 # by default we only output what we'd expect from the target network
-output = hypernetwork.apply(hypernetwork_params, inp=[inp])
+output = hypernetwork.apply(hypernetwork_params, inp)
 
 # return aux_output
-output, generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp=[inp], has_aux=True)
+output, generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp, has_aux=True)
 
 # generate params separately
-generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp=[inp], method=hypernetwork.generate_params)
+generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp, method=hypernetwork.generate_params)
 
-output = hypernetwork.apply(hypernetwork_params, inp=[inp], generated_params=generated_params)
+output = hypernetwork.apply(hypernetwork_params, inp, generated_params=generated_params)
 
 
 ### Dynamic Hypernetwork
@@ -299,10 +344,13 @@ dynamic_hypernetwork = JaxDynamicHyperNetwork.from_target(
     num_embeddings = NUM_EMBEDDINGS,
     inputs=jnp.zeros((1, 32)) # jax needs this to initialize target weights
 )
-dynamic_hypernetwork_params = dynamic_hypernetwork.init(key, inp=[inp]) # flax needs to initialize hypernetwork parameters first
+dynamic_hypernetwork_params = dynamic_hypernetwork.init(key, inp) # flax needs to initialize hypernetwork parameters first
 
 # by default we only output what we'd expect from the target network
-output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp=[inp])
+output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp)
+
+# by default we only output what we'd expect from the target network
+output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp, generate_params_kwargs=dict(hidden_state=jnp.zeros((1,32))))
 
 ```
 
@@ -387,7 +435,7 @@ hypernetwork = MultiTaskHypernetwork.from_target(
 inp = torch.zeros((1, 32))
 one_hot_task_embedding = torch.tensor([0.0,0.0,1.0,0.0]).view((1,4))
 
-out = hypernetwork(inp=[inp], one_hot_task_embedding=one_hot_task_embedding)
+out = hypernetwork(inp, generate_params_kwargs=dict(one_hot_task_embedding=one_hot_task_embedding))
 ```
 
 ---
@@ -426,12 +474,12 @@ inp = torch.randn((10, 1, 8))
 # use with a for loop
 outputs = []
 for i in range(10):
-    outputs.append(hypernetwork(inp=[inp[i]]))
+    outputs.append(hypernetwork(inp[i]))
 outputs = torch.stack(outputs)
 assert outputs.size() == (10, 1, 32)
 
 # using vmap
-outputs = vmap(hypernetwork)([inp])
+outputs = vmap(hypernetwork)(inp)
 assert outputs.size() == (10, 1, 32)
 ```
 ## Future Plans
@@ -440,6 +488,7 @@ Here's a list of some stuff that will hopefully be added to the library. If anyo
 - [x] MNIST example
 - [x] Lunar Lander Example
 - [x] Dynamic Hypernetwork Example
+- [x] Multi-task Hypernetwork Example
 - [ ] Dedicated documentation website
 - [ ] Efficient batching for DynamicJaxHypernetwork
 - [ ] Implementation of [HyperTransformer](https://arxiv.org/abs/2201.04182)

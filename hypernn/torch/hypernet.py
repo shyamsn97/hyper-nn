@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import Iterable
-from typing import Any, Dict, List, Optional, Tuple, Type, Union  # noqa
+from typing import Any, Dict, List, Optional, Tuple  # noqa
 
 import torch
 import torch.nn as nn
@@ -33,8 +32,10 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
     ):
         super().__init__()
 
-        self._target = create_functional_target_network(copy.deepcopy(target_network))
-        self.target_weight_shapes = self._target.target_weight_shapes
+        self.target_network = create_functional_target_network(
+            copy.deepcopy(target_network)
+        )
+        self.target_weight_shapes = self.target_network.target_weight_shapes
 
         self.num_target_parameters = num_target_parameters
 
@@ -69,46 +70,69 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
     def make_weight_generator(self) -> nn.Module:
         return nn.Linear(self.embedding_dim, self.weight_chunk_dim)
 
-    def generate_params(
-        self, inp: Iterable[Any] = []
-    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def generate_params(self, *args, **kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
         embedding = self.embedding_module(
             torch.arange(self.num_embeddings, device=self.device)
         )
         generated_params = self.weight_generator(embedding).view(-1)
         return generated_params, {"embedding": embedding}
 
+    def target_forward(
+        self,
+        *args,
+        generated_params: torch.Tensor,
+        assert_parameter_shapes: bool = True,
+        **kwargs,
+    ) -> torch.Tensor:
+        if assert_parameter_shapes:
+            self.assert_parameter_shapes(generated_params)
+
+        return self.target_network(generated_params, *args, **kwargs)
+
     def forward(
         self,
-        inp: Iterable[Any] = [],
+        *args,
         generated_params: Optional[torch.Tensor] = None,
         has_aux: bool = False,
         assert_parameter_shapes: bool = True,
-        *args,
+        generate_params_kwargs: Dict[str, Any] = {},
         **kwargs,
     ):
         """
         Main method for creating / using generated parameters and passing in input into the target network
 
         Args:
-            inp (Iterable[Any], optional): List of inputs to be passing into the target network. Defaults to [].
             generated_params (Optional[torch.Tensor], optional): Generated parameters of the target network. If not provided, the hypernetwork will generate the parameters. Defaults to None.
             has_aux (bool, optional): If True, return the auxiliary output from generate_params method. Defaults to False.
             assert_parameter_shapes (bool, optional): If True, raise an error if generated_params does not have shape (num_target_parameters,). Defaults to True.
-
+            generate_params_kwargs (Dict[str, Any], optional): kwargs to be passed to generate_params method
+            *args, *kwargs, arguments to be passed into the target network (also gets passed into generate_params)
         Returns:
             output (torch.Tensor) | (torch.Tensor, Dict[str, torch.Tensor]): returns output from target network and optionally auxiliary output.
         """
         aux_output = {}
         if generated_params is None:
-            generated_params, aux_output = self.generate_params(inp, *args, **kwargs)
-
-        if assert_parameter_shapes:
-            self.assert_parameter_shapes(generated_params)
+            generated_params, aux_output = self.generate_params(
+                *args, **kwargs, **generate_params_kwargs
+            )
 
         if has_aux:
-            return self._target(generated_params, *inp), generated_params, aux_output
-        return self._target(generated_params, *inp)
+            return (
+                self.target_forward(
+                    *args,
+                    generated_params=generated_params,
+                    assert_parameter_shapes=assert_parameter_shapes,
+                    **kwargs,
+                ),
+                generated_params,
+                aux_output,
+            )
+        return self.target_forward(
+            *args,
+            generated_params=generated_params,
+            assert_parameter_shapes=assert_parameter_shapes,
+            **kwargs,
+        )
 
     @property
     def device(self) -> torch.device:

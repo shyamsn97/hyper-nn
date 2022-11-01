@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Any, Dict, List, Optional, Tuple, Type, Union  # noqa
+from typing import Any, Dict, Optional, Tuple, Type, Union  # noqa
 
 import torch
 import torch.nn as nn
@@ -31,12 +30,13 @@ class TorchDynamicEmbeddingModule(nn.Module):
 
     def forward(
         self,
-        inp: torch.Tensor,
+        x: torch.Tensor,
         hidden_state: Optional[torch.Tensor] = None,
     ):
         if hidden_state is None:
             hidden_state = self.init_hidden()
-        hidden_state = self.rnn_cell(inp, hidden_state)
+
+        hidden_state = self.rnn_cell(x, hidden_state)
         indices = torch.arange(self.num_embeddings, device=self.device)
         embedding = self.embedding(indices) * hidden_state.view(self.num_embeddings, 1)
         return embedding, hidden_state
@@ -75,8 +75,10 @@ class TorchDynamicHyperNetwork(TorchHyperNetwork):
         return nn.Linear(self.embedding_dim, self.weight_chunk_dim)
 
     def generate_params(
-        self, inp: Iterable[Any] = [], hidden_state: Optional[torch.Tensor] = None
+        self, *args, hidden_state: Optional[torch.Tensor] = None, **kwargs
     ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        embedding, hidden_state = self.embedding_module(*inp, hidden_state=hidden_state)
+        embedding, hidden_state = self.embedding_module(
+            *args, **kwargs, hidden_state=hidden_state
+        )
         generated_params = self.weight_generator(embedding).view(-1)
         return generated_params, {"embedding": embedding, "hidden_state": hidden_state}
