@@ -221,14 +221,14 @@ hypernetwork = TorchHyperNetwork.from_target(
 inp = torch.zeros((1, 32))
 
 # by default we only output what we'd expect from the target network
-output = hypernetwork(inp=[inp])
+output = hypernetwork(inp)
 
 # return aux_output
-output, generated_params, aux_output = hypernetwork(inp=[inp], has_aux=True)
+output, generated_params, aux_output = hypernetwork(inp, has_aux=True)
 
 # generate params separately
-generated_params, aux_output = hypernetwork.generate_params(inp=[inp])
-output = hypernetwork(inp=[inp], generated_params=generated_params)
+generated_params, aux_output = hypernetwork.generate_params()
+output = hypernetwork(inp, generated_params=generated_params)
 
 
 ### Dynamic Hypernetwork
@@ -241,7 +241,7 @@ dynamic_hypernetwork = TorchDynamicHyperNetwork.from_target(
 )
 
 # by default we only output what we'd expect from the target network
-output = dynamic_hypernetwork(inp=[inp])
+output = dynamic_hypernetwork(inp, hidden_state=torch.zeros((1,32)))
 
 ```
 
@@ -276,18 +276,18 @@ hypernetwork = JaxHyperNetwork.from_target(
 # now we can use the hypernetwork like any other nn.Module
 inp = jnp.zeros((1, 32))
 key = random.PRNGKey(0)
-hypernetwork_params = hypernetwork.init(key, inp=[inp]) # flax needs to initialize hypernetwork parameters first
+hypernetwork_params = hypernetwork.init(key, inp) # flax needs to initialize hypernetwork parameters first
 
 # by default we only output what we'd expect from the target network
-output = hypernetwork.apply(hypernetwork_params, inp=[inp])
+output = hypernetwork.apply(hypernetwork_params, inp)
 
 # return aux_output
-output, generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp=[inp], has_aux=True)
+output, generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp, has_aux=True)
 
 # generate params separately
-generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp=[inp], method=hypernetwork.generate_params)
+generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp, method=hypernetwork.generate_params)
 
-output = hypernetwork.apply(hypernetwork_params, inp=[inp], generated_params=generated_params)
+output = hypernetwork.apply(hypernetwork_params, inp, generated_params=generated_params)
 
 
 ### Dynamic Hypernetwork
@@ -299,10 +299,10 @@ dynamic_hypernetwork = JaxDynamicHyperNetwork.from_target(
     num_embeddings = NUM_EMBEDDINGS,
     inputs=jnp.zeros((1, 32)) # jax needs this to initialize target weights
 )
-dynamic_hypernetwork_params = dynamic_hypernetwork.init(key, inp=[inp]) # flax needs to initialize hypernetwork parameters first
+dynamic_hypernetwork_params = dynamic_hypernetwork.init(key, inp) # flax needs to initialize hypernetwork parameters first
 
 # by default we only output what we'd expect from the target network
-output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp=[inp])
+output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp)
 
 ```
 

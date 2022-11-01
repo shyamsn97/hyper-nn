@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -13,10 +12,6 @@ from jax._src.tree_util import PyTreeDef
 
 from hypernn.base import HyperNetwork
 from hypernn.jax.utils import count_jax_params, get_weight_chunk_dims
-
-
-def target_forward(apply_fn, param_tree, *args, **kwargs):
-    return apply_fn(param_tree, *args, **kwargs)
 
 
 def create_param_tree(generated_params, target_weight_shapes, target_treedef):
@@ -66,27 +61,40 @@ class JaxHyperNetwork(nn.Module, HyperNetwork):
     def make_weight_generator(self):
         return nn.Dense(self.weight_chunk_dim)
 
-    def generate_params(
-        self, inp: Iterable[Any] = []
-    ) -> Tuple[jnp.array, Dict[str, Any]]:
+    def generate_params(self, *args, **kwargs) -> Tuple[jnp.array, Dict[str, Any]]:
         embedding = self.embedding_module(jnp.arange(0, self.num_embeddings))
         generated_params = self.weight_generator(embedding).reshape(-1)
         return generated_params, {"embedding": embedding}
 
+    def target_forward(
+        self,
+        *args,
+        generated_params: jnp.array,
+        assert_parameter_shapes: bool = True,
+        **kwargs,
+    ) -> jnp.array:
+
+        if assert_parameter_shapes:
+            self.assert_parameter_shapes(generated_params)
+
+        param_tree = create_param_tree(
+            generated_params, self.target_weight_shapes, self.target_treedef
+        )
+
+        return self.target_network.apply(param_tree, *args, **kwargs)
+
     def forward(
         self,
-        inp: Iterable[Any] = [],
+        *args,
         generated_params: Optional[jnp.array] = None,
         has_aux: bool = False,
         assert_parameter_shapes: bool = True,
-        *args,
         **kwargs,
     ) -> Tuple[jnp.array, List[jnp.array]]:
         """
         Main method for creating / using generated parameters and passing in input into the target network
 
         Args:
-            inp (Iterable[Any], optional): List of inputs to be passing into the target network. Defaults to [].
             generated_params (Optional[jnp.array], optional): Generated parameters of the target network. If not provided, the hypernetwork will generate the parameters. Defaults to None.
             has_aux (bool, optional): If True, return the auxiliary output from generate_params method. Defaults to False.
             assert_parameter_shapes (bool, optional): If True, raise an error if generated_params does not have shape (num_target_parameters,). Defaults to True.
@@ -96,32 +104,41 @@ class JaxHyperNetwork(nn.Module, HyperNetwork):
         """
         aux_output = {}
         if generated_params is None:
-            generated_params, aux_output = self.generate_params(inp, *args, **kwargs)
-
-        if assert_parameter_shapes:
-            self.assert_parameter_shapes(generated_params)
-
-        param_tree = create_param_tree(
-            generated_params, self.target_weight_shapes, self.target_treedef
-        )
+            generated_params, aux_output = self.generate_params(*args, **kwargs)
 
         if has_aux:
             return (
-                target_forward(self.target_network.apply, param_tree, *inp),
+                self.target_forward(
+                    *args,
+                    generated_params=generated_params,
+                    assert_parameter_shapes=assert_parameter_shapes,
+                    **kwargs,
+                ),
                 generated_params,
                 aux_output,
             )
-        return target_forward(self.target_network.apply, param_tree, *inp)
+        return self.target_forward(
+            *args,
+            generated_params=generated_params,
+            assert_parameter_shapes=assert_parameter_shapes,
+            **kwargs,
+        )
 
     def __call__(
         self,
-        inp: Iterable[Any] = [],
+        *args,
         generated_params: Optional[jnp.array] = None,
         has_aux: bool = False,
-        *args,
+        assert_parameter_shapes: bool = True,
         **kwargs,
     ) -> Tuple[jnp.array, List[jnp.array]]:
-        return self.forward(inp, generated_params, has_aux, *args, **kwargs)
+        return self.forward(
+            *args,
+            generated_params=generated_params,
+            has_aux=has_aux,
+            assert_parameter_shapes=assert_parameter_shapes,
+            **kwargs,
+        )
 
     @classmethod
     def count_params(

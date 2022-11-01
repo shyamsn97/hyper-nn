@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Any, Dict, List, Optional, Tuple, Type, Union  # noqa
+from typing import Any, Dict, Optional, Tuple, Type, Union  # noqa
 
 import torch
 import torch.nn as nn
@@ -31,12 +30,13 @@ class TorchDynamicEmbeddingModule(nn.Module):
 
     def forward(
         self,
-        inp: torch.Tensor,
+        x: torch.Tensor,
         hidden_state: Optional[torch.Tensor] = None,
     ):
         if hidden_state is None:
             hidden_state = self.init_hidden()
-        hidden_state = self.rnn_cell(inp, hidden_state)
+
+        hidden_state = self.rnn_cell(x, hidden_state)
         indices = torch.arange(self.num_embeddings, device=self.device)
         embedding = self.embedding(indices) * hidden_state.view(self.num_embeddings, 1)
         return embedding, hidden_state
@@ -75,8 +75,54 @@ class TorchDynamicHyperNetwork(TorchHyperNetwork):
         return nn.Linear(self.embedding_dim, self.weight_chunk_dim)
 
     def generate_params(
-        self, inp: Iterable[Any] = [], hidden_state: Optional[torch.Tensor] = None
+        self, *args, hidden_state: Optional[torch.Tensor] = None, **kwargs
     ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        embedding, hidden_state = self.embedding_module(*inp, hidden_state=hidden_state)
+        embedding, hidden_state = self.embedding_module(
+            *args, **kwargs, hidden_state=hidden_state
+        )
         generated_params = self.weight_generator(embedding).view(-1)
         return generated_params, {"embedding": embedding, "hidden_state": hidden_state}
+
+    def forward(
+        self,
+        *args,
+        generated_params: Optional[torch.Tensor] = None,
+        has_aux: bool = False,
+        assert_parameter_shapes: bool = True,
+        hidden_state: Optional[torch.Tensor] = None,
+        **kwargs,
+    ):
+        """
+        Main method for creating / using generated parameters and passing in input into the target network
+
+        Args:
+            generated_params (Optional[torch.Tensor], optional): Generated parameters of the target network. If not provided, the hypernetwork will generate the parameters. Defaults to None.
+            has_aux (bool, optional): If True, return the auxiliary output from generate_params method. Defaults to False.
+            assert_parameter_shapes (bool, optional): If True, raise an error if generated_params does not have shape (num_target_parameters,). Defaults to True.
+            *args, *kwargs, arguments to be passed into the target network (also gets passed into generate_params)
+        Returns:
+            output (torch.Tensor) | (torch.Tensor, Dict[str, torch.Tensor]): returns output from target network and optionally auxiliary output.
+        """
+        aux_output = {}
+        if generated_params is None:
+            generated_params, aux_output = self.generate_params(
+                *args, **kwargs, hidden_state=hidden_state
+            )
+
+        if has_aux:
+            return (
+                self.target_forward(
+                    *args,
+                    generated_params=generated_params,
+                    assert_parameter_shapes=assert_parameter_shapes,
+                    **kwargs,
+                ),
+                generated_params,
+                aux_output,
+            )
+        return self.target_forward(
+            *args,
+            generated_params=generated_params,
+            assert_parameter_shapes=assert_parameter_shapes,
+            **kwargs,
+        )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 """
                             Static HyperNetwork
@@ -117,10 +117,9 @@ class HyperNetwork(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def forward(
         self,
-        inp: Iterable[Any] = [],
+        *args,
         generated_params=None,
         has_aux: bool = True,
-        *args,
         **kwargs,
     ):
         """
