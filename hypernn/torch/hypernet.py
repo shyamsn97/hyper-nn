@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple  # noqa
 
 import torch
 import torch.nn as nn
+from functorch import vmap
 
 from hypernn.base import HyperNetwork
 from hypernn.torch.utils import (
@@ -70,7 +71,7 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
     def make_weight_generator(self) -> nn.Module:
         return nn.Linear(self.embedding_dim, self.weight_chunk_dim)
 
-    def generate_params(self, *args, **kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def generate_params(self) -> Tuple[torch.Tensor, Dict[str, Any]]:
         embedding = self.embedding_module(
             torch.arange(self.num_embeddings, device=self.device)
         )
@@ -113,7 +114,7 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         aux_output = {}
         if generated_params is None:
             generated_params, aux_output = self.generate_params(
-                *args, **kwargs, **generate_params_kwargs
+                **generate_params_kwargs
             )
 
         if has_aux:

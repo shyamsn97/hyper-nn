@@ -61,7 +61,7 @@ class JaxHyperNetwork(nn.Module, HyperNetwork):
     def make_weight_generator(self):
         return nn.Dense(self.weight_chunk_dim)
 
-    def generate_params(self, *args, **kwargs) -> Tuple[jnp.array, Dict[str, Any]]:
+    def generate_params(self) -> Tuple[jnp.array, Dict[str, Any]]:
         embedding = self.embedding_module(jnp.arange(0, self.num_embeddings))
         generated_params = self.weight_generator(embedding).reshape(-1)
         return generated_params, {"embedding": embedding}
@@ -107,7 +107,7 @@ class JaxHyperNetwork(nn.Module, HyperNetwork):
         aux_output = {}
         if generated_params is None:
             generated_params, aux_output = self.generate_params(
-                *args, **kwargs, **generate_params_kwargs
+                **generate_params_kwargs
             )
 
         if has_aux:

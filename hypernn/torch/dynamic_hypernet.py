@@ -75,10 +75,8 @@ class TorchDynamicHyperNetwork(TorchHyperNetwork):
         return nn.Linear(self.embedding_dim, self.weight_chunk_dim)
 
     def generate_params(
-        self, *args, hidden_state: Optional[torch.Tensor] = None, **kwargs
+        self, x: torch.Tensor, hidden_state: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        embedding, hidden_state = self.embedding_module(
-            *args, **kwargs, hidden_state=hidden_state
-        )
+        embedding, hidden_state = self.embedding_module(x=x, hidden_state=hidden_state)
         generated_params = self.weight_generator(embedding).view(-1)
         return generated_params, {"embedding": embedding, "hidden_state": hidden_state}

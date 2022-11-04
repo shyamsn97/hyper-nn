@@ -53,10 +53,8 @@ class JaxDynamicHyperNetwork(JaxHyperNetwork):
         )
 
     def generate_params(
-        self, *args, hidden_state: Optional[jnp.array] = None, **kwargs
+        self, x: jnp.array, hidden_state: Optional[jnp.array] = None
     ) -> Tuple[jnp.array, Dict[str, Any]]:
-        embedding, hidden_state = self.embedding_module(
-            *args, **kwargs, hidden_state=hidden_state
-        )
+        embedding, hidden_state = self.embedding_module(x=x, hidden_state=hidden_state)
         generated_params = self.weight_generator(embedding).reshape(-1)
         return generated_params, {"embedding": embedding, "hidden_state": hidden_state}

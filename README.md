@@ -283,10 +283,10 @@ dynamic_hypernetwork = TorchDynamicHyperNetwork.from_target(
     num_embeddings = NUM_EMBEDDINGS
 )
 
-output = dynamic_hypernetwork(inp)
+output = dynamic_hypernetwork(inp, generate_params_kwargs=dict(x=inp))
 
 # by default we only output what we'd expect from the target network
-output = dynamic_hypernetwork(inp, generate_params_kwargs=dict(hidden_state=torch.zeros((1,32))))
+output = dynamic_hypernetwork(inp, generate_params_kwargs=dict(x=inp, hidden_state=torch.zeros((1,32))))
 
 ```
 
@@ -330,7 +330,7 @@ output = hypernetwork.apply(hypernetwork_params, inp)
 output, generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp, has_aux=True)
 
 # generate params separately
-generated_params, aux_output = hypernetwork.apply(hypernetwork_params, inp, method=hypernetwork.generate_params)
+generated_params, aux_output = hypernetwork.apply(hypernetwork_params, method=hypernetwork.generate_params)
 
 output = hypernetwork.apply(hypernetwork_params, inp, generated_params=generated_params)
 
@@ -344,13 +344,13 @@ dynamic_hypernetwork = JaxDynamicHyperNetwork.from_target(
     num_embeddings = NUM_EMBEDDINGS,
     inputs=jnp.zeros((1, 32)) # jax needs this to initialize target weights
 )
-dynamic_hypernetwork_params = dynamic_hypernetwork.init(key, inp) # flax needs to initialize hypernetwork parameters first
+dynamic_hypernetwork_params = dynamic_hypernetwork.init(key, inp, generate_params_kwargs=dict(x=inp, hidden_state=jnp.zeros((1,32)))) # flax needs to initialize hypernetwork parameters first
 
 # by default we only output what we'd expect from the target network
-output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp)
+output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp, generate_params_kwargs=dict(x=inp, hidden_state=jnp.zeros((1,32))))
 
 # by default we only output what we'd expect from the target network
-output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp, generate_params_kwargs=dict(hidden_state=jnp.zeros((1,32))))
+output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp, generate_params_kwargs=dict(x=inp, hidden_state=jnp.zeros((1,32))))
 
 ```
 
@@ -474,12 +474,31 @@ inp = torch.randn((10, 1, 8))
 # use with a for loop
 outputs = []
 for i in range(10):
-    outputs.append(hypernetwork(inp[i]))
+    outputs.append(hypernetwork(inp[i], generate_params_kwargs=dict(x=inp[i])))
 outputs = torch.stack(outputs)
 assert outputs.size() == (10, 1, 32)
 
 # using vmap
-outputs = vmap(hypernetwork)(inp)
+from typing import Dict, Any
+
+def forward(
+    generated_params,
+    *args,
+    has_aux: bool = False,
+    assert_parameter_shapes: bool = True,
+    generate_params_kwargs: Dict[str, Any] = {},
+    **kwargs
+):
+    return hypernetwork.forward(*args,
+                                generated_params=generated_params,
+                                has_aux=has_aux,
+                                assert_parameter_shapes=assert_parameter_shapes,
+                                generate_params_kwargs=generate_params_kwargs,
+                                **kwargs)
+
+generated_vmap_params, aux_output = vmap(hypernetwork.generate_params)(inp)
+outputs = vmap(forward)(generated_vmap_params, inp)
+
 assert outputs.size() == (10, 1, 32)
 ```
 ## Future Plans
