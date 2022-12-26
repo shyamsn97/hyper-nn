@@ -15,7 +15,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 setup(
     name="hyper-nn",
     packages=find_packages(exclude=('tests',)),
-    version="0.2.0",
+    version="0.2.1",
     url="https://github.com/shyamsn97/hyper-nn",
     license='MIT',
 
