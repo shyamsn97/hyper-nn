@@ -32,18 +32,17 @@ class FunctionalParamVectorWrapper(nn.Module):
         self.target_weight_shapes = {k: param_dict[k].size() for k in param_dict}
 
         try:
-            _functional, self.named_params = make_functional(module)
+            _functional, named_params = make_functional(module)
         except Exception:
-            _functional, self.named_params, buffers = make_functional_with_buffers(
-                module
-            )
+            _functional, named_params, buffers = make_functional_with_buffers(module)
             self.custom_buffers = buffers
+        self.named_params = [named_params]
         self.functional = [_functional]  # remove params from being counted
 
     def forward(self, param_vector: torch.Tensor, *args, **kwargs):
         params = []
         start = 0
-        for p in self.named_params:
+        for p in self.named_params[0]:
             end = start + np.prod(p.size())
             params.append(param_vector[start:end].view(p.size()))
             start = end

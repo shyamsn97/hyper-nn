@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple  # noqa
 
 import torch
 import torch.nn as nn
-from functorch import vmap
+from functorch import vmap  # noqa
 
 from hypernn.base import HyperNetwork
 from hypernn.torch.utils import (
