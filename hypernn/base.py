@@ -53,28 +53,6 @@ from typing import Any, Dict, Optional, Tuple
 
 
 class HyperNetwork(metaclass=abc.ABCMeta):
-    def setup(self) -> None:
-        self.embedding_module = self.make_embedding_module()
-        self.weight_generator = self.make_weight_generator()
-
-    @abc.abstractmethod
-    def make_embedding_module(self):
-        """
-        Makes an embedding module to be used
-
-        Returns:
-            a torch.nn.Module or flax.linen.Module that can be used to return an embedding matrix to be used to generate weights
-        """
-
-    @abc.abstractmethod
-    def make_weight_generator(self):
-        """
-        Makes an embedding module to be used
-
-        Returns:
-            a torch.nn.Module or flax.linen.Module that can be used to return an embedding matrix to be used to generate weights
-        """
-
     @classmethod
     @abc.abstractmethod
     def count_params(

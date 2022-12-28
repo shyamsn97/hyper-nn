@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from typing import Any, Dict, List, Optional, Tuple  # noqa
 
 import torch
@@ -8,11 +7,7 @@ import torch.nn as nn
 from functorch import vmap  # noqa
 
 from hypernn.base import HyperNetwork
-from hypernn.torch.utils import (
-    FunctionalParamVectorWrapper,
-    count_params,
-    get_weight_chunk_dims,
-)
+from hypernn.torch.utils import FunctionalParamVectorWrapper, count_params
 
 
 def create_functional_target_network(target_network: nn.Module):
@@ -25,58 +20,27 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         self,
         target_network: nn.Module,
         num_target_parameters: Optional[int] = None,
-        embedding_dim: int = 100,
-        num_embeddings: int = 3,
-        weight_chunk_dim: Optional[int] = None,
-        custom_embedding_module: Optional[nn.Module] = None,
-        custom_weight_generator: Optional[nn.Module] = None,
     ):
         super().__init__()
 
-        self.target_network = create_functional_target_network(
-            copy.deepcopy(target_network)
+        self.functional_target_network = create_functional_target_network(
+            target_network
         )
-        self.target_weight_shapes = self.target_network.target_weight_shapes
+        self.target_weight_shapes = self.functional_target_network.target_weight_shapes
 
         self.num_target_parameters = num_target_parameters
-
-        self.embedding_dim = embedding_dim
-        self.num_embeddings = num_embeddings
-        self.weight_chunk_dim = weight_chunk_dim
-        self.custom_embedding_module = custom_embedding_module
-        self.custom_weight_generator = custom_weight_generator
-        self.setup()
+        if num_target_parameters is None:
+            self.num_target_parameters = count_params(target_network)
 
         self.__device_param_dummy__ = nn.Parameter(
             torch.empty(0)
         )  # to keep track of device
 
-    def setup(self):
-        if self.custom_embedding_module is None:
-            self.embedding_module = self.make_embedding_module()
-        else:
-            self.embedding_module = self.custom_embedding_module
-
-        if self.custom_weight_generator is None:
-            self.weight_generator = self.make_weight_generator()
-        else:
-            self.weight_generator = self.custom_weight_generator_module
-
     def assert_parameter_shapes(self, generated_params):
         assert generated_params.shape[-1] >= self.num_target_parameters
 
-    def make_embedding_module(self) -> nn.Module:
-        return nn.Embedding(self.num_embeddings, self.embedding_dim)
-
-    def make_weight_generator(self) -> nn.Module:
-        return nn.Linear(self.embedding_dim, self.weight_chunk_dim)
-
-    def generate_params(self) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        embedding = self.embedding_module(
-            torch.arange(self.num_embeddings, device=self.device)
-        )
-        generated_params = self.weight_generator(embedding).view(-1)
-        return generated_params, {"embedding": embedding}
+    def generate_params(self, *args, **kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        raise NotImplementedError("Generate params not implemented!")
 
     def target_forward(
         self,
@@ -88,7 +52,7 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         if assert_parameter_shapes:
             self.assert_parameter_shapes(generated_params)
 
-        return self.target_network(generated_params, *args, **kwargs)
+        return self.functional_target_network(generated_params, *args, **kwargs)
 
     def forward(
         self,
@@ -154,9 +118,6 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
         target_network: nn.Module,
         target_input_shape: Optional[Any] = None,
         num_target_parameters: Optional[int] = None,
-        embedding_dim: int = 100,
-        num_embeddings: int = 3,
-        weight_chunk_dim: Optional[int] = None,
         inputs: Optional[List[Any]] = None,
         *args,
         **kwargs,
@@ -165,16 +126,9 @@ class TorchHyperNetwork(nn.Module, HyperNetwork):
             num_target_parameters = cls.count_params(
                 target_network, target_input_shape, inputs=inputs
             )
-        if weight_chunk_dim is None:
-            weight_chunk_dim = get_weight_chunk_dims(
-                num_target_parameters, num_embeddings
-            )
         return cls(
             target_network=target_network,
             num_target_parameters=num_target_parameters,
-            embedding_dim=embedding_dim,
-            num_embeddings=num_embeddings,
-            weight_chunk_dim=weight_chunk_dim,
             *args,
             **kwargs,
         )
