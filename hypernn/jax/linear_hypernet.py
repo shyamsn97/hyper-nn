@@ -1,52 +1,29 @@
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional, Tuple
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from hypernn.jax.hypernet import JaxHyperNetwork
 from hypernn.jax.utils import get_weight_chunk_dims
 
 
-class RNNCell(nn.Module):
-    hidden_dim: int
+def create_param_tree(generated_params, target_weight_shapes, target_treedef):
+    param_list = []
+    curr = 0
+    for shape in target_weight_shapes:
+        num_params = np.prod(shape)
+        param_list.append(generated_params[curr : curr + num_params].reshape(shape))
+        curr = curr + num_params
 
-    @nn.compact
-    def __call__(self, x, hidden_state):
-        concatenated = jnp.concatenate((x, hidden_state), axis=-1)
-        hidden_state = nn.Dense(self.hidden_dim)(concatenated)
-        return nn.tanh(hidden_state)
-
-
-class JaxDynamicEmbeddingModule(nn.Module):
-    input_dim: int
-    embedding_dim: int
-    num_embeddings: int
-
-    def setup(self):
-        self.embedding = nn.Embed(
-            self.num_embeddings,
-            self.embedding_dim,
-            embedding_init=jax.nn.initializers.uniform(),
-        )
-        self.rnn = RNNCell(self.num_embeddings)
-
-    def init_hidden(self):
-        return jnp.zeros((1, self.num_embeddings))
-
-    def __call__(self, x: jnp.array, hidden_state: Optional[jnp.array] = None):
-        if hidden_state is None:
-            hidden_state = self.init_hidden()
-        indices = jnp.arange(0, self.num_embeddings)
-        hidden_state = self.rnn(x, hidden_state)
-        embedding = self.embedding(indices) * hidden_state.reshape(
-            self.num_embeddings, 1
-        )
-        return embedding, hidden_state
+    param_tree = jax.tree_util.tree_unflatten(target_treedef, param_list)
+    return param_tree
 
 
-class JaxDynamicHyperNetwork(JaxHyperNetwork):
-    input_dim: int = 0
+class JaxLinearHyperNetwork(JaxHyperNetwork):
     embedding_dim: int = 100
     num_embeddings: int = 3
     weight_chunk_dim: Optional[int] = None
@@ -65,19 +42,19 @@ class JaxDynamicHyperNetwork(JaxHyperNetwork):
             self.weight_generator = self.custom_weight_generator_module
 
     def make_embedding_module(self):
-        return JaxDynamicEmbeddingModule(
-            self.input_dim, self.embedding_dim, self.num_embeddings
+        return nn.Embed(
+            self.num_embeddings,
+            self.embedding_dim,
+            embedding_init=jax.nn.initializers.uniform(),
         )
 
     def make_weight_generator(self):
         return nn.Dense(self.weight_chunk_dim)
 
-    def generate_params(
-        self, x: jnp.array, hidden_state: Optional[jnp.array] = None
-    ) -> Tuple[jnp.array, Dict[str, Any]]:
-        embedding, hidden_state = self.embedding_module(x=x, hidden_state=hidden_state)
+    def generate_params(self) -> Tuple[jnp.array, Dict[str, Any]]:
+        embedding = self.embedding_module(jnp.arange(0, self.num_embeddings))
         generated_params = self.weight_generator(embedding).reshape(-1)
-        return generated_params, {"embedding": embedding, "hidden_state": hidden_state}
+        return generated_params, {"embedding": embedding}
 
     @classmethod
     def from_target(
@@ -91,7 +68,7 @@ class JaxDynamicHyperNetwork(JaxHyperNetwork):
         weight_chunk_dim: Optional[int] = None,
         *args,
         **kwargs,
-    ) -> JaxDynamicEmbeddingModule:
+    ) -> JaxLinearHyperNetwork:
         num_target_parameters, variables = cls.count_params(
             target_network, target_input_shape, inputs=inputs, return_variables=True
         )

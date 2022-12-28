@@ -50,9 +50,8 @@ Hypernetworks generally come in two variants, static or dynamic. Static Hypernet
 <p align="center">
   <img width="75%" src="https://raw.githubusercontent.com/shyamsn97/hyper-nn/main/images/dynamic_hypernetwork.drawio.svg">
 </p>
+`hyper-nn` allows you to design Hypernetworks with flexibility and ease, all you have to do is implement the `generate_params` method, which outputs a parameter vector. We also include basic versions of this, composed of two linear components:
 
-
-`hyper-nn` represents Hypernetworks with two key components: 
 - `embedding_module` that holds information about layers(s) in the target network, or more generally a chunk of the target networks weights. By default this outputs a matrix of size `num_embeddings x embedding_dim`
 - `weight_generator`, which takes in the embedding and outputs a flat parameter vector for the target network. By default this module outputs chunks in the size of `weight_chunk_dim`, which is calculated automatically as `num_target_parameters // num_embeddings`.
 
@@ -241,8 +240,7 @@ To create hypernetworks, its easier to use the `from_target` method instead of i
 import torch
 import torch.nn as nn
 
-from hypernn.torch.hypernet import TorchHyperNetwork
-from hypernn.torch.dynamic_hypernet import TorchDynamicHyperNetwork
+from hypernn.torch import TorchHyperNetwork, TorchLinearHyperNetwork, TorchDynamicHyperNetwork
 
 # any module
 target_network = nn.Sequential(
@@ -254,7 +252,7 @@ target_network = nn.Sequential(
 EMBEDDING_DIM = 4
 NUM_EMBEDDINGS = 32
 
-hypernetwork = TorchHyperNetwork.from_target(
+hypernetwork = TorchLinearHyperNetwork(
     target_network = target_network,
     embedding_dim = EMBEDDING_DIM,
     num_embeddings = NUM_EMBEDDINGS
@@ -276,7 +274,7 @@ output = hypernetwork(inp, generated_params=generated_params)
 
 ### Dynamic Hypernetwork
 
-dynamic_hypernetwork = TorchDynamicHyperNetwork.from_target(
+dynamic_hypernetwork = TorchDynamicHyperNetwork(
     input_dim = 32,
     target_network = target_network,
     embedding_dim = EMBEDDING_DIM,
@@ -296,8 +294,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 from jax import random
 
-from hypernn.jax.dynamic_hypernet import JaxHyperNetwork
-from hypernn.jax.dynamic_hypernet import JaxDynamicHyperNetwork
+from hypernn.jax import JaxHyperNetwork, JaxLinearHyperNetwork, JaxDynamicHyperNetwork
 
 # any module
 target_network = nn.Sequential(
@@ -311,7 +308,7 @@ target_network = nn.Sequential(
 EMBEDDING_DIM = 4
 NUM_EMBEDDINGS = 32
 
-hypernetwork = JaxHyperNetwork.from_target(
+hypernetwork = JaxLinearHyperNetwork.from_target(
     target_network = target_network,
     embedding_dim = EMBEDDING_DIM,
     num_embeddings = NUM_EMBEDDINGS,
@@ -357,16 +354,17 @@ output = dynamic_hypernetwork.apply(dynamic_hypernetwork_params, inp, generate_p
 ## Customizing Hypernetworks
 `hyper-nn` makes it easy to customize and create more complex hypernetworks.
 
-The main components to modify are the methods: `make_embedding_module`, `make_weight_generator`, and `generate_params`. This allows for complete control over how the hypernetwork generates parameters
+The main components to modify are the methods `generate_params`. This allows for complete control over how the hypernetwork generates parameters
 
-For example, here we implement a hypernetwork that could be useful in a multi task setting, where a one hot encoded class embedding is concatenated to every row in the embedding matrix outputted by the `embedding_module`. In addition, we override both our `make_embedding_module` and `make_weight_generator` methods to output customized modules. This whole class implementation is under 50 lines of code!
+For example, here we extend the linear hypernetwork which uses components `embedding_module` and `weight_generator`. We implement a hypernetwork that could be useful in a multi task setting, where a one hot encoded class embedding is concatenated to every row in the embedding matrix outputted by the `embedding_module`. In addition, we override both our `make_embedding_module` and `make_weight_generator` methods to output customized modules. This whole class implementation is under 50 lines of code!
 
 ```python
 from typing import Optional, Iterable, Any, Tuple, Dict
 import torch
 import torch.nn as nn
 # static hypernetwork
-from hypernn.torch.hypernet import TorchHyperNetwork
+from hypernn.torch import TorchHyperNetwork
+from hypernn.torch.utils import get_weight_chunk_dims
 
 class MultiTaskHypernetwork(TorchHyperNetwork):
     def __init__(
@@ -378,14 +376,20 @@ class MultiTaskHypernetwork(TorchHyperNetwork):
         num_embeddings: int = 3,
         weight_chunk_dim: Optional[int] = None,
     ):
-        self.num_tasks = num_tasks
         super().__init__(
                     target_network = target_network,
                     num_target_parameters = num_target_parameters,
-                    embedding_dim = embedding_dim,
-                    num_embeddings = num_embeddings,
-                    weight_chunk_dim = weight_chunk_dim,
                 )
+        self.num_tasks = num_tasks
+        self.embedding_dim = embedding_dim
+        self.num_embeddings = num_embeddings
+        self.weight_chunk_dim = weight_chunk_dim
+        if weight_chunk_dim is None:
+            self.weight_chunk_dim = get_weight_chunk_dims(
+                self.num_target_parameters, num_embeddings
+            )
+        self.embedding_module = self.make_embedding_module()
+        self.weight_generator = self.make_weight_generator()        
 
     def make_embedding_module(self) -> nn.Module:
         embedding = nn.Embedding(self.num_embeddings, 8)
@@ -404,7 +408,7 @@ class MultiTaskHypernetwork(TorchHyperNetwork):
         )
 
     def generate_params(
-        self, inp: Iterable[Any], one_hot_task_embedding: torch.Tensor
+        self, one_hot_task_embedding: torch.Tensor
     ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         embedding = self.embedding_module(
             torch.arange(self.num_embeddings, device=self.device)
@@ -413,7 +417,6 @@ class MultiTaskHypernetwork(TorchHyperNetwork):
         concatenated = torch.cat((embedding, one_hot_task_embedding), dim=-1)
         generated_params = self.weight_generator(concatenated).view(-1)
         return generated_params, {"embedding": embedding}
-
 
 # usage
 target_network = nn.Sequential(
@@ -426,7 +429,7 @@ NUM_TASKS = 4
 EMBEDDING_DIM = 4
 NUM_EMBEDDINGS = 32
 
-hypernetwork = MultiTaskHypernetwork.from_target(
+hypernetwork = MultiTaskHypernetwork(
     num_tasks = NUM_TASKS,
     target_network = target_network,
     embedding_dim = EMBEDDING_DIM,
@@ -448,7 +451,7 @@ import torch.nn as nn
 from functorch import vmap
 
 # dynamic hypernetwork
-from hypernn.torch.dynamic_hypernet import TorchDynamicHyperNetwork
+from hypernn.torch import TorchDynamicHyperNetwork
 
 # any module
 target_network = nn.Sequential(
@@ -461,7 +464,7 @@ EMBEDDING_DIM = 4
 NUM_EMBEDDINGS = 32
 
 # conditioned on input to generate param vector
-hypernetwork = TorchDynamicHyperNetwork.from_target(
+hypernetwork = TorchDynamicHyperNetwork(
     target_network = target_network,
     embedding_dim = EMBEDDING_DIM,
     num_embeddings = NUM_EMBEDDINGS,

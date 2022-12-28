@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple, Type, Union  # noqa
+from typing import Any, Dict, List, Optional, Tuple, Type, Union  # noqa
 
 import torch
 import torch.nn as nn
 
 from hypernn.torch.hypernet import TorchHyperNetwork
+from hypernn.torch.utils import get_weight_chunk_dims
 
 
 class TorchDynamicEmbeddingModule(nn.Module):
@@ -59,12 +60,30 @@ class TorchDynamicHyperNetwork(TorchHyperNetwork):
         super().__init__(
             target_network,
             num_target_parameters,
-            embedding_dim,
-            num_embeddings,
-            weight_chunk_dim,
-            custom_embedding_module,
-            custom_weight_generator,
         )
+        self.embedding_dim = embedding_dim
+        self.num_embeddings = num_embeddings
+
+        self.weight_chunk_dim = weight_chunk_dim
+        if weight_chunk_dim is None:
+            self.weight_chunk_dim = get_weight_chunk_dims(
+                self.num_target_parameters, num_embeddings
+            )
+
+        self.custom_embedding_module = custom_embedding_module
+        self.custom_weight_generator = custom_weight_generator
+        self.setup()
+
+    def setup(self):
+        if self.custom_embedding_module is None:
+            self.embedding_module = self.make_embedding_module()
+        else:
+            self.embedding_module = self.custom_embedding_module
+
+        if self.custom_weight_generator is None:
+            self.weight_generator = self.make_weight_generator()
+        else:
+            self.weight_generator = self.custom_weight_generator_module
 
     def make_embedding_module(self) -> nn.Module:
         return TorchDynamicEmbeddingModule(
