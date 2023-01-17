@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional, Tuple
 
 import flax.linen as nn
@@ -91,7 +93,7 @@ class JaxDynamicHyperNetwork(JaxHyperNetwork):
         weight_chunk_dim: Optional[int] = None,
         *args,
         **kwargs,
-    ) -> JaxDynamicEmbeddingModule:
+    ) -> JaxDynamicHyperNetwork:
         num_target_parameters, variables = cls.count_params(
             target_network, target_input_shape, inputs=inputs, return_variables=True
         )

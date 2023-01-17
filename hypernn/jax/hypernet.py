@@ -125,7 +125,10 @@ class JaxHyperNetwork(nn.Module, HyperNetwork):
         return_variables: bool = False,
     ):
         return count_jax_params(
-            target, target_input_shape, inputs=inputs, return_variables=return_variables
+            target,
+            target_input_shape,
+            inputs=inputs,
+            return_variables=return_variables,
         )
 
     @classmethod
@@ -139,8 +142,12 @@ class JaxHyperNetwork(nn.Module, HyperNetwork):
         **kwargs,
     ) -> JaxHyperNetwork:
         num_target_parameters, variables = cls.count_params(
-            target_network, target_input_shape, inputs=inputs, return_variables=True
+            target_network,
+            target_input_shape,
+            inputs=inputs,
+            return_variables=True,
         )
+
         _value_flat, target_treedef = jax.tree_util.tree_flatten(variables)
         target_weight_shapes = [v.shape for v in _value_flat]
 
