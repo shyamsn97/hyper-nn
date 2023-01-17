@@ -22,12 +22,13 @@ def count_jax_params(
     input_shape: Optional[Tuple[int, ...]] = None,
     inputs: Optional[List[jnp.array]] = None,
     return_variables: bool = False,
+    **kwargs
 ) -> int:
     if input_shape is None and inputs is None:
         raise ValueError("Input shape or inputs must be specified")
     if inputs is None:
         inputs = [jnp.zeros(shape) for shape in input_shape]
-    variables = model.init(jax.random.PRNGKey(0), *inputs)
+    variables = model.init(jax.random.PRNGKey(0), *inputs, **kwargs)
 
     def count_recursive(d):
         s = 0
